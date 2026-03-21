@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "../utils/supabase/client";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { loginWithSuperAdmin } from "../actions/authActions";
 
@@ -25,57 +25,19 @@ export default function LoginPage() {
       return;
     }
 
-    // กรณีไม่ผ่าน SuperAdmin, ส่งต่อให้ Supabase ผู้ใช้ทั่วไปตรวจสอบต่อ
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else {
-      router.push("/");
-      router.refresh(); // Refresh สเตตัสใหม่ของแอพ
-    }
-  };
-
-  const handleSignUp = async () => {
-    setLoading(true);
-    setError(null);
-    
-    const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setError("กรุณาเข้าเช็คอีเมลของคุณเพื่อยืนยันตัวตน (Check your email)");
-    }
+    // กรณีไม่ผ่าน SuperAdmin, แจ้งเตือน (หรือคุณต้องการระบบ Email/Password ของตัวเองแจ้งได้นะครับ)
+    setError("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือคุณต้องเข้าใช้ผ่าน Google");
     setLoading(false);
   };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
-    const supabase = createClient();
     
-    // Auth redirect url
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${siteUrl}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      setError(error.message);
+    try {
+      await signIn("google", { callbackUrl: "/" });
+    } catch (err: any) {
+      setError("เกิดข้อผิดพลาดในการเชื่อมต่อกับ Google");
       setLoading(false);
     }
   };
@@ -85,7 +47,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md p-8 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-3xl shadow-xl">
         
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Smart Planner</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">Smart Planner</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-2">ลงชื่อเข้าใช้ระบบ (Login)</p>
         </div>
 
@@ -130,31 +92,23 @@ export default function LoginPage() {
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? "กำลังดำเนินการ..." : "ลงชื่อเข้าใช้ (Sign In)"}
-            </button>
-            <button 
-              type="button" 
-              onClick={handleSignUp}
-              disabled={loading}
-              className="w-full py-3 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-800 dark:text-gray-200 font-bold rounded-xl transition-colors disabled:opacity-50"
-            >
-              สมัครสมาชิก (Sign Up)
             </button>
           </div>
         </form>
 
         <div className="flex items-center my-6">
           <div className="flex-1 border-t border-gray-200 dark:border-zinc-800"></div>
-          <span className="px-3 text-sm text-gray-500 dark:text-gray-400">หรือ (OR)</span>
+          <span className="px-3 text-sm text-gray-500 dark:text-gray-400 font-medium">เข้าง่ายๆ ผ่านโซเชียล</span>
           <div className="flex-1 border-t border-gray-200 dark:border-zinc-800"></div>
         </div>
 
         <button 
           onClick={handleGoogleLogin}
           disabled={loading}
-          className="w-full py-3 flex items-center justify-center gap-2 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-800 dark:text-gray-200 font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50"
+          className="w-full py-3 flex items-center justify-center gap-3 bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-800 dark:text-gray-300 font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
