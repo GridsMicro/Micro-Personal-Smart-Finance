@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "../utils/supabase/client";
 import { useRouter } from "next/navigation";
+import { loginWithSuperAdmin } from "../actions/authActions";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -16,6 +17,15 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     
+    // ตรวจสอบกับ API Service กลาง (มาตรฐาน SuperAdmin)
+    const superAdminRes = await loginWithSuperAdmin(email, password);
+    if (superAdminRes.success) {
+      router.push("/");
+      router.refresh();
+      return;
+    }
+
+    // กรณีไม่ผ่าน SuperAdmin, ส่งต่อให้ Supabase ผู้ใช้ทั่วไปตรวจสอบต่อ
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({
       email,

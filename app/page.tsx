@@ -392,7 +392,7 @@ export default function Home() {
                      <XAxis dataKey="month" tick={{ fill: '#6B7280' }} tickLine={false} axisLine={false} />
                      <YAxis tick={{ fill: '#6B7280' }} tickLine={false} axisLine={false} tickFormatter={(value) => `${value.toLocaleString()}`} />
                      <Tooltip 
-                       formatter={(value: number) => [`${baseFiat.symbol}${value.toLocaleString("en-US", { maximumFractionDigits: 2 })}`, undefined]}
+                       formatter={(value: any) => [`${baseFiat.symbol}${Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 })}`, undefined]}
                        cursor={{ fill: '#F3F4F6' }}
                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                      />
