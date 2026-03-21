@@ -42,7 +42,8 @@ export async function saveTransaction(data: {
         note: data.note,
         date: data.date,
       })
-      .where(eq(transactions.id, data.id));
+      .where(eq(transactions.id, data.id))
+      .where(eq(transactions.userId, session.user.id)); // ตรวจสอบ ID ผู้เข้าถึง
   } else {
     // เพิ่มใหม่
     await db.insert(transactions).values({
@@ -64,7 +65,9 @@ export async function deleteTransaction(id: number) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
 
-  await db.delete(transactions).where(eq(transactions.id, id));
+  await db.delete(transactions)
+    .where(eq(transactions.id, id))
+    .where(eq(transactions.userId, session.user.id)); // ตรวจสอบ ID ผู้เข้าถึง
   
   revalidatePath("/");
   return { success: true };
