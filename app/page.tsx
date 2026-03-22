@@ -38,7 +38,7 @@ export default function LandingPage() {
       {/* 🚀 Header Area */}
       <nav className="h-24 px-8 max-w-[1400px] mx-auto flex justify-between items-center border-b border-white/5 bg-[#27272a]/95 backdrop-blur-xl sticky top-0 z-[100]">
         <div className="flex items-center gap-4 group">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-black font-black text-xl shadow-2xl transition-transform group-hover:scale-110">SP</div>
+          <img src="/logo.png" alt="Smart Planner Logo" className="w-10 h-10 rounded-xl shadow-[0_0_15px_rgba(0,255,255,0.5)] transition-transform duration-500 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(0,255,255,0.8)] object-cover" />
           <div>
             <h1 className="font-black text-xl tracking-tighter uppercase leading-none">SMART PLANNER</h1>
             <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5 ml-0.5">Automated Finance</p>

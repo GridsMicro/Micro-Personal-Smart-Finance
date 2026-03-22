@@ -266,8 +266,8 @@ export default function Home() {
       {/* 🚀 Pro Navigation */}
       <header className="sticky top-0 z-[100] border-b border-white/5 bg-[#27272a]/90 backdrop-blur-xl h-20">
         <div className="max-w-[1600px] mx-auto px-6 h-full flex justify-between items-center gap-8">
-           <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-gradient-to-tr from-blue-700 via-blue-500 to-cyan-400 rounded-xl flex items-center justify-center text-xl shadow-2xl">💡</div>
+           <div className="flex items-center gap-4 group">
+              <img src="/logo.png" alt="Smart Planner Logo" className="w-10 h-10 rounded-xl shadow-[0_0_15px_rgba(0,255,255,0.5)] transition-transform duration-500 group-hover:scale-110 object-cover" />
               <div className="hidden sm:block">
                  <h1 className="font-black text-lg tracking-tighter uppercase leading-none">SMART PLANNER</h1>
                  <p className="text-[9px] text-zinc-500 font-bold tracking-widest uppercase mt-0.5">Automated Asset Management</p>
