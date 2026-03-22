@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Smart Planner - ระบบจัดการการเงินอัจฉริยะ",
+  title: "The Smart Planner - ระบบบันทึกสินทรัพย์ดิจิทัล",
   description: "ที่ปรึกษาทางการเงินส่วนตัวที่คุณเข้าถึงได้ทุกที่ทุกเวลา",
 };
 
