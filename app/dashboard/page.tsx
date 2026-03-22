@@ -45,8 +45,8 @@ const ASSET_LOGOS: Record<string, string> = {
   GOAT: "/coins/GOAT.jpg",
   AVAX: "/coins/AVAX.png",
   SATS: "/coins/SATS.png",
-  DOT: "/coins/DOT.svg",
-  NEAR: "/coins/NEAR.svg",
+  DOT: "/coins/DOT.png",
+  NEAR: "/coins/NEAR.png",
   TRX: "/coins/TRX.svg",
   LINK: "/coins/LINK.svg",
   MATIC: "/coins/MATIC.svg",
@@ -83,14 +83,30 @@ const PartnerLogos = () => (
 const IconWithFallback = ({ asset, className = "w-10 h-10" }: { asset: string, className?: string }) => {
   const [error, setError] = useState(false);
   const src = ASSET_LOGOS[asset];
+  
+  // Reset error when asset changes
+  useEffect(() => {
+    setError(false);
+  }, [asset]);
+
   if (error || !src) {
     return (
-      <div className={`${className} bg-zinc-800 rounded-full flex items-center justify-center font-bold text-[10px] text-zinc-400 border border-zinc-700 uppercase`}>
+      <div className={`${className} bg-zinc-800 rounded-full flex items-center justify-center font-bold text-[10px] text-zinc-400 border border-zinc-700 uppercase shadow-lg`}>
         {asset.substring(0, 2)}
       </div>
     );
   }
-  return <img src={src} alt={asset} className={`${className} object-contain`} onError={() => setError(true)} />;
+  return (
+    <div className={`${className} rounded-full overflow-hidden bg-zinc-800/50 flex items-center justify-center border border-white/5 shadow-lg`}>
+      <img 
+        key={src}
+        src={src} 
+        alt={asset} 
+        className="w-full h-full object-contain" 
+        onError={() => setError(true)} 
+      />
+    </div>
+  );
 };
 
 export default function Home() {
