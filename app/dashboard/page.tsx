@@ -294,7 +294,6 @@ export default function Home() {
       </header>
 
       <main className="max-w-[1600px] mx-auto px-6 py-8">
-        
         {/* 📊 High-Level Metrics Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
            <div className="p-8 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[2.5rem] border border-white/10 relative overflow-hidden group shadow-2xl shadow-blue-500/10">
@@ -326,257 +325,269 @@ export default function Home() {
            </div>
         </div>
 
-        {/* 📈 Daily Wealth Engine: Equity Curve Chart */}
-        <section className="mb-12">
-           <div className="bg-zinc-900/50 border border-white/5 rounded-[2.5rem] p-8 min-h-[420px] shadow-2xl relative overflow-hidden group">
-              {/* Background Glow */}
-              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/5 blur-[120px] -z-10 group-hover:bg-blue-600/10 transition-all duration-1000"></div>
+        {/* 🚀 Command Console: Growth Chart & Transaction Injection */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
+            
+            {/* 📈 Daily Wealth Engine (8/12) */}
+            <div className="lg:col-span-8 flex flex-col h-full">
+               <div className="bg-zinc-900/50 border border-white/5 rounded-[3rem] p-10 shadow-2xl relative overflow-hidden group h-full flex flex-col min-h-[500px]">
+                  {/* Background Glow */}
+                  <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-600/5 blur-[120px] -z-10 group-hover:bg-blue-600/10 transition-all duration-1000"></div>
 
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
-                 <div className="flex items-center gap-5">
-                    <div className="w-12 h-12 bg-blue-600/10 rounded-2xl flex items-center justify-center text-blue-500 shadow-xl border border-blue-500/20">📈</div>
-                    <div>
-                       <h2 className="text-xl font-black tracking-tight text-white">กราฟการเติบโตรายวัน</h2>
-                       <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-1">Daily Equity Growth Curve (System Snapshot at 6:00 AM)</p>
-                    </div>
-                 </div>
-                 <div className="flex items-center gap-3">
-                    <div className="px-4 py-2 bg-zinc-900 border border-white/5 rounded-xl flex items-center gap-2">
-                       <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                       <span className="text-[9px] font-black text-white uppercase tracking-widest">Growth Engine Active</span>
-                    </div>
-                    <button onClick={() => window.print()} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all group-hover:scale-110 active:scale-95 border border-white/5">
-                       📄
-                    </button>
-                 </div>
-              </div>
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+                     <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center text-blue-500 shadow-xl border border-blue-500/20">📈</div>
+                        <div>
+                           <h2 className="text-2xl font-black tracking-tighter text-white uppercase italic">Growth Monitor</h2>
+                           <p className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.3em] mt-1.5 ml-0.5">Daily Equity Growth Curve (Snapshot at 6:00 AM)</p>
+                        </div>
+                     </div>
+                     <div className="px-5 py-2.5 bg-zinc-900 border border-white/10 rounded-2xl flex items-center gap-3">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] italic">Systems Online</span>
+                     </div>
+                  </div>
 
-              <div className="h-[300px] w-full mt-6 relative z-10">
-                 {dailyData.length > 0 ? (
-                   <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                        <XAxis 
-                          dataKey="date" 
-                          stroke="#52525b" 
-                          fontSize={9} 
-                          tickLine={false} 
-                          axisLine={false} 
-                          dy={10}
-                          tickFormatter={(str) => {
-                             const date = new Date(str);
-                             return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
-                          }}
-                        />
-                        <YAxis 
-                          stroke="#52525b" 
-                          fontSize={9} 
-                          tickLine={false} 
-                          axisLine={false} 
-                          dx={-10}
-                          tickFormatter={(val) => `฿${(val / 1000).toFixed(0)}k`}
-                        />
-                        <Tooltip 
-                          contentStyle={{ 
-                             background: 'rgba(24, 24, 27, 0.95)', 
-                             backdropFilter: 'blur(10px)',
-                             border: '1px solid rgba(255,255,255,0.1)', 
-                             borderRadius: '16px', 
-                             padding: '12px 16px',
-                             boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.5)'
-                          }}
-                          itemStyle={{ color: '#white', fontWeight: '900', fontSize: '11px', textTransform: 'uppercase' }}
-                          labelStyle={{ color: '#71717a', fontWeight: 'bold', fontSize: '9px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}
-                          formatter={(value: any) => [`฿${Number(value).toLocaleString()}`, 'PORTFOLIO VALUE']}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="totalValue" 
-                          stroke="#3B82F6" 
-                          strokeWidth={4}
-                          fillOpacity={1} 
-                          fill="url(#colorValue)" 
-                          animationDuration={2500}
-                          activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 2, fill: '#18181b' }}
-                        />
-                      </AreaChart>
-                   </ResponsiveContainer>
-                 ) : (
-                   <div className="h-full flex flex-col items-center justify-center text-zinc-600 bg-white/#[0.02] border border-dashed border-white/5 rounded-3xl">
-                      <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-3xl mb-4 border border-white/5 opacity-40">📊</div>
-                      <h4 className="font-black text-zinc-400 uppercase tracking-widest text-xs mb-2">ยังไม่มีประวัติการเติบโต</h4>
-                      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em] text-center px-8 leading-relaxed">
-                        ระบบกำลังรอคิว Snapshot แรกของคุณในเวลา 06:00 น. พรุ่งนี้ครับ<br />
-                        หลังจากนั้นคุณจะเห็นกราฟความมั่งคั่งนี้พุ่งทะยานขึ้นครับ!
-                      </p>
-                   </div>
-                 )}
-              </div>
-           </div>
-        </section>
+                  <div className="flex-1 w-full mt-4 relative z-10 min-h-[320px]">
+                     {dailyData.length > 0 ? (
+                       <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
+                            <XAxis 
+                              dataKey="date" 
+                              stroke="#52525b" 
+                              fontSize={9} 
+                              tickLine={false} 
+                              axisLine={false} 
+                              dy={15}
+                              tickFormatter={(str) => {
+                                 const date = new Date(str);
+                                 return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+                              }}
+                            />
+                            <YAxis 
+                              stroke="#52525b" 
+                              fontSize={9} 
+                              tickLine={false} 
+                              axisLine={false} 
+                              dx={-10}
+                              tickFormatter={(val) => `฿${(val / 1000).toFixed(0)}k`}
+                            />
+                            <Tooltip 
+                              contentStyle={{ 
+                                 background: 'rgba(24, 24, 27, 0.95)', 
+                                 backdropFilter: 'blur(30px)',
+                                 border: '1px solid rgba(255,255,255,0.1)', 
+                                 borderRadius: '24px', 
+                                 padding: '16px 20px',
+                                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)'
+                              }}
+                              itemStyle={{ color: '#white', fontWeight: '900', fontSize: '11px', textTransform: 'uppercase' }}
+                              labelStyle={{ color: '#71717a', fontWeight: 'bold', fontSize: '10px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.15em' }}
+                              formatter={(value: any) => [`฿${Number(value).toLocaleString()}`, 'PORTFOLIO VALUE']}
+                            />
+                            <Area 
+                              type="monotone" 
+                              dataKey="totalValue" 
+                              stroke="#3B82F6" 
+                              strokeWidth={4} 
+                              fillOpacity={1} 
+                              fill="url(#colorValue)" 
+                              animationDuration={2500}
+                           />
+                          </AreaChart>
+                       </ResponsiveContainer>
+                     ) : (
+                       <div className="h-full flex items-center justify-center text-zinc-800 text-[10px] font-black uppercase tracking-[0.5em] border border-dashed border-white/5 rounded-[3rem]">
+                          Initializing Wealth Analytics Hub...
+                       </div>
+                     )}
+                  </div>
+               </div>
+            </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+            {/* 📋 Transaction Insertion Unit (4/12) */}
+            <div className="lg:col-span-4 flex flex-col h-full">
+               <section className="bg-zinc-900 border border-white/10 rounded-[3rem] p-10 h-full shadow-2xl flex flex-col min-h-[500px]">
+                  <div className="flex items-center gap-4 mb-10">
+                     <div className="w-1.5 h-7 bg-blue-600 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
+                     <h3 className="text-base font-black text-white px-1 uppercase tracking-tighter italic">{editingTxId ? "Update Log" : "New Portfolio Record"}</h3>
+                  </div>
+                  <form onSubmit={handleSave} className="flex flex-col gap-6 flex-1 justify-between">
+                     <div className="flex flex-col gap-6">
+                        <div className="flex bg-[#27272a]/50 p-2 rounded-2xl border border-white/5">
+                           <button type="button" onClick={() => setInputType("DEPOSIT")} className={`flex-1 py-3 text-[10px] font-black rounded-xl transition-all ${inputType === "DEPOSIT" ? "bg-zinc-100 text-black shadow-2xl" : "text-zinc-600 opacity-60"}`}>DEPOSIT</button>
+                           <button type="button" onClick={() => setInputType("WITHDRAW")} className={`flex-1 py-3 text-[10px] font-black rounded-xl transition-all ${inputType === "WITHDRAW" ? "bg-red-600/50 text-white" : "text-zinc-600 opacity-60"}`}>WITHDRAW</button>
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-2">
+                           {["BINANCE_TH", "BITKUB", "OKX"].map(b => (
+                             <button key={b} type="button" onClick={() => setInputBroker(b)} className={`py-3 text-[8px] font-black rounded-xl border transition-all ${inputBroker === b ? "bg-blue-600 border-blue-400 text-white shadow-xl scale-105" : "bg-[#27272a]/20 border-white/5 text-zinc-800"}`}>{b.replace("_", " ")}</button>
+                           ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="flex flex-col gap-2">
+                              <label className="text-[9px] font-black text-zinc-700 uppercase ml-1 tracking-[0.2em]">Asset Type</label>
+                              <select value={inputAsset} onChange={(e) => setInputAsset(e.target.value)} className="w-full bg-[#27272a]/60 border border-white/10 rounded-2xl p-4 text-[12px] font-black focus:outline-none focus:ring-2 focus:ring-blue-600/20 appearance-none text-blue-400 cursor-pointer">
+                                 {SUPPORTED_ASSETS.map(a => <option key={a} value={a}>{a}</option>)}
+                              </select>
+                           </div>
+                           <div className="flex flex-col gap-2">
+                              <label className="text-[9px] font-black text-zinc-700 uppercase ml-1 tracking-[0.2em]">Amount Unit</label>
+                              <input type="number" step="any" placeholder="0.00" value={inputAmount} onChange={(e) => setInputAmount(e.target.value)} className="w-full bg-[#27272a]/60 border border-white/10 rounded-2xl p-4 text-[12px] font-mono focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-white placeholder:text-zinc-800" />
+                           </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                           <label className="text-[9px] font-black text-zinc-700 uppercase ml-1 tracking-[0.2em]">Entry Timestamp</label>
+                           <input type="date" value={inputDate} onChange={(e) => setInputDate(e.target.value)} className="w-full bg-[#27272a]/60 border border-white/10 rounded-2xl p-4 text-[12px] focus:outline-none text-zinc-500 font-bold cursor-pointer" />
+                        </div>
+                     </div>
+
+                     <button type="submit" disabled={isSaving} className="w-full py-5 bg-gradient-to-r from-blue-700 to-indigo-600 text-white rounded-[2rem] font-black text-[11px] tracking-[0.3em] uppercase shadow-2xl shadow-blue-600/30 active:scale-95 transition-all mt-6 border-t border-white/20">
+                        {isSaving ? "INJECTING..." : "COMMIT RECORD"}
+                     </button>
+                  </form>
+               </section>
+            </div>
+        </div>
+
+        {/* 🏦 Main Asset Inventory (Full Width) */}
+        <div className="flex flex-col gap-20 mb-20">
            
-           {/* 🏦 Main Area: Consolidated Assets & Broker Grid */}
-           <div className="lg:col-span-8 flex flex-col gap-12">
-              
-              {/* Aggregated Portfolio (Consolidated) */}
-              <section>
-                 <div className="flex items-center justify-between px-2 mb-8">
-                    <h3 className="text-xs font-black text-zinc-600 uppercase tracking-[0.4em]">Asset Consolidation (สินทรัพย์รวม)</h3>
-                    <div className="h-px flex-1 bg-white/5 mx-8"></div>
-                 </div>
-                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-                    {Object.entries(aggregatedPortfolio).sort((a,b) => b[1] - a[1]).map(([asset, amount]) => {
-                      const val = getAssetValueInFiat(asset, amount as number);
-                      if (Math.abs(amount) < 0.00000001) return null;
-                      return (
-
-                           <div 
-                             key={asset} 
-                             onClick={() => setSelectedAssetDetail(asset)}
-                             className="p-6 bg-zinc-900/30 border border-white/5 rounded-3xl hover:bg-white/[0.04] transition-all group cursor-pointer border-b-2 border-b-blue-600/10 active:scale-95 hover:shadow-2xl hover:shadow-blue-500/5 relative overflow-hidden"
-                           >
-                              <div className="absolute top-0 right-0 w-20 h-20 bg-blue-600/5 blur-3xl rounded-full translate-x-10 -translate-y-10 group-hover:bg-blue-600/10 transition-all"></div>
-                              <div className="flex justify-between items-start mb-5 relative z-10">
-                                 <IconWithFallback asset={asset} className="w-10 h-10 shadow-lg group-hover:scale-110 transition-transform" />
-                                 <span className="text-[10px] font-black text-zinc-600 uppercase tracking-tighter group-hover:text-blue-500 transition-colors">{asset}</span>
-                              </div>
-                              <p className="font-black text-sm text-gray-200 mb-1 relative z-10">{amount.toLocaleString(undefined, { maximumFractionDigits: (amount < 1 ? 8 : 4) })}</p>
-                              <div className="flex items-center justify-between relative z-10">
-                                 <p className="text-[11px] font-black text-blue-500/80">{baseFiat.symbol}{val.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                                 <div className="flex gap-1.5">
-                                    {/* Daily Trend */}
-                                    <span title="Daily Qty Change" className={`text-[8px] font-black px-1.5 py-0.5 rounded-md flex items-center justify-center min-w-[18px] ${getMovement(asset).daily === 'up' ? 'text-blue-400 bg-blue-400/10' : getMovement(asset).daily === 'down' ? 'text-red-400 bg-red-400/10' : 'text-zinc-600 bg-white/5'}`}>
-                                      {getMovement(asset).daily === 'up' ? '▲' : getMovement(asset).daily === 'down' ? '▼' : '▬'}
-                                    </span>
-                                    {/* Monthly Trend */}
-                                    <span title="Monthly Qty Change" className={`text-[8px] font-black px-1.5 py-0.5 rounded-md border flex items-center justify-center min-w-[24px] ${getMovement(asset).monthly === 'up' ? 'text-blue-400 border-blue-400/30' : getMovement(asset).monthly === 'down' ? 'text-red-400 border-red-400/30' : 'text-zinc-600 border-white/10'}`}>
-                                      {getMovement(asset).monthly === 'up' ? 'M▲' : getMovement(asset).monthly === 'down' ? 'M▼' : 'M▬'}
-                                    </span>
-                                 </div>
+           {/* Aggregated Portfolio (Consolidated) */}
+           <section>
+              <div className="flex items-center justify-between px-4 mb-10">
+                 <h3 className="text-sm font-black text-zinc-700 uppercase tracking-[0.5em] italic">Asset Consolidation (สินทรัพย์รวม)</h3>
+                 <div className="h-px flex-1 bg-gradient-to-r from-white/5 to-transparent mx-10"></div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-5">
+                 {Object.entries(aggregatedPortfolio).sort((a,b) => b[1] - a[1]).map(([asset, amount]) => {
+                   const val = getAssetValueInFiat(asset, amount as number);
+                   if (Math.abs(amount) < 0.00000001) return null;
+                   return (
+                        <div 
+                          key={asset} 
+                          onClick={() => setSelectedAssetDetail(asset)}
+                          className="p-8 bg-zinc-900/30 border border-white/5 rounded-[2.5rem] hover:bg-white/[0.04] transition-all group cursor-pointer border-b-4 border-b-blue-600/10 active:scale-95 hover:shadow-2xl hover:shadow-blue-500/10 relative overflow-hidden"
+                        >
+                           <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/5 blur-3xl rounded-full translate-x-12 -translate-y-12 group-hover:bg-blue-600/15 transition-all"></div>
+                           <div className="flex justify-between items-start mb-6 relative z-10">
+                              <IconWithFallback asset={asset} className="w-12 h-12 shadow-2xl group-hover:scale-110 transition-transform" />
+                              <span className="text-[11px] font-black text-zinc-700 uppercase tracking-tighter group-hover:text-blue-500 transition-colors italic">{asset}</span>
+                           </div>
+                           <p className="font-black text-lg text-gray-100 mb-2 relative z-10 tracking-tighter">{amount.toLocaleString(undefined, { maximumFractionDigits: (amount < 1 ? 8 : 4) })}</p>
+                           <div className="flex items-center justify-between relative z-10">
+                              <p className="text-sm font-black text-blue-500 tracking-tight">{baseFiat.symbol}{val.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                              <div className="flex gap-2">
+                                 {/* Daily Trend */}
+                                 <span title="Daily Qty Change" className={`text-[9px] font-black px-2 py-1 rounded-lg flex items-center justify-center min-w-[22px] ${getMovement(asset).daily === 'up' ? 'text-blue-400 bg-blue-400/10 border border-blue-400/20' : getMovement(asset).daily === 'down' ? 'text-red-400 bg-red-400/10 border border-red-400/20' : 'text-zinc-600 bg-white/5'}`}>
+                                   {getMovement(asset).daily === 'up' ? '▲' : getMovement(asset).daily === 'down' ? '▼' : '▬'}
+                                 </span>
                               </div>
                            </div>
-                      );
-                    })}
-                 </div>
-              </section>
+                        </div>
+                   );
+                 })}
+              </div>
+           </section>
 
-              {/* Broker Individual Breakdown Cards - FIXED HEIGHT SYMMETRY */}
-              <section>
-                 <div className="flex items-center justify-between px-2 mb-8">
-                    <h3 className="text-xs font-black text-zinc-600 uppercase tracking-[0.4em]">Broker Accounts (แยกตามโบรกเกอร์)</h3>
-                    <div className="h-px flex-1 bg-white/5 mx-8"></div>
-                 </div>
-                 {/* Flex Row with Items-Stretch for Equal Heights */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
-                    {["BINANCE_TH", "BITKUB", "OKX"].map(broker => {
-                       const items = (Object.values(portfolioWithBroker) as any[]).filter(i => i.broker === broker && Math.abs(i.amount) > 0.00000001);
-                       if (items.length === 0) return null;
-                       return (
-                         <div key={broker} className="flex flex-col h-full bg-zinc-900/60 border border-white/10 rounded-[3rem] overflow-hidden shadow-2xl relative">
-                            <div className="p-8 border-b border-white/5 bg-white/5 flex justify-between items-center group">
-                               <div className="flex items-center gap-4">
-                                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.6)]"></div>
-                                  <span className="text-xs font-black tracking-[0.2em] text-white uppercase">{broker.replace("_", " ")}</span>
-                               </div>
-                               <span className="text-base font-black text-blue-400 tracking-tight">{baseFiat.symbol}{brokerStats[broker]?.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+           {/* Broker Individual Breakdown Cards */}
+           <section>
+              <div className="flex items-center justify-between px-4 mb-10">
+                 <h3 className="text-sm font-black text-zinc-700 uppercase tracking-[0.5em] italic">Brokerage Node Analysis (แยกตามโบรกเกอร์)</h3>
+                 <div className="h-px flex-1 bg-gradient-to-r from-white/5 to-transparent mx-10"></div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
+                 {["BINANCE_TH", "BITKUB", "OKX"].map(broker => {
+                    const items = (Object.values(portfolioWithBroker) as any[]).filter(i => i.broker === broker && Math.abs(i.amount) > 0.00000001);
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={broker} className="flex flex-col h-full bg-zinc-900/40 border border-white/5 rounded-[3.5rem] overflow-hidden shadow-2xl relative group">
+                         <div className="absolute inset-0 bg-blue-600/[0.01] group-hover:bg-blue-600/[0.03] transition-all"></div>
+                         <div className="p-10 border-b border-white/5 bg-white/[0.02] flex justify-between items-center relative z-10">
+                            <div className="flex items-center gap-5">
+                               <div className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
+                               <span className="text-sm font-black tracking-widest text-white uppercase italic">{broker.replace("_", " ")}</span>
                             </div>
-                            <div className="flex-1 p-6 flex flex-col gap-2 overflow-y-auto custom-scrollbar">
-                               {items.map(it => (
-                                 <div key={it.asset} className="flex items-center justify-between p-4 bg-white/[0.02] hover:bg-white/[0.05] rounded-[1.8rem] transition-all border border-transparent hover:border-white/5">
-                                    <div className="flex items-center gap-5">
-                                       <IconWithFallback asset={it.asset} className="w-10 h-10" />
-                                       <div>
-                                          <p className="font-black text-sm text-zinc-100 uppercase">{it.amount.toLocaleString(undefined, { maximumFractionDigits: (it.amount < 1 ? 8 : 4) })} {it.asset}</p>
-                                          <p className="text-[10px] font-bold text-zinc-700 mt-1 uppercase tracking-tighter">Market Price: {baseFiat.symbol}{getReferencePrice(it.asset, broker).toLocaleString(undefined, { maximumFractionDigits: (getReferencePrice(it.asset, broker) < 0.1 ? 8 : 2) })}</p>
-                                       </div>
+                            <span className="text-xl font-black text-blue-400 tracking-tighter">{baseFiat.symbol}{brokerStats[broker]?.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                         </div>
+                         <div className="flex-1 p-8 flex flex-col gap-3 overflow-y-auto custom-scrollbar relative z-10">
+                            {items.map(it => (
+                              <div key={it.asset} className="flex items-center justify-between p-5 bg-white/[0.02] hover:bg-white/[0.05] rounded-[2.2rem] transition-all border border-transparent hover:border-white/5 group/asset">
+                                 <div className="flex items-center gap-6">
+                                    <IconWithFallback asset={it.asset} className="w-12 h-12" />
+                                    <div>
+                                       <p className="font-black text-sm text-zinc-100 uppercase tracking-tighter">{it.amount.toLocaleString(undefined, { maximumFractionDigits: (it.amount < 1 ? 8 : 4) })} {it.asset}</p>
+                                       <p className="text-[10px] font-bold text-zinc-700 mt-1 uppercase tracking-tighter italic">Market: {baseFiat.symbol}{getReferencePrice(it.asset, broker).toLocaleString()}</p>
                                     </div>
-                                    <span className="text-xs font-black text-zinc-500/80">{baseFiat.symbol}{getAssetValueInFiat(it.asset, it.amount, broker).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                                  </div>
-                               ))}
-                               {items.length < 3 && <div className="flex-1 flex items-center justify-center border-2 border-dashed border-white/5 rounded-3xl mt-4 opacity-20"><span className="text-[10px] font-black uppercase text-zinc-800 tracking-widest">Balanced Portfolio</span></div>}
-                            </div>
+                                 <span className="text-[11px] font-black text-zinc-500/80 group-hover/asset:text-blue-400 transition-colors">{baseFiat.symbol}{getAssetValueInFiat(it.asset, it.amount, broker).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                              </div>
+                            ))}
                          </div>
-                       );
-                    })}
-                 </div>
-              </section>
-           </div>
-
-           {/* 📋 Control Sidebar (Column 9-12) */}
-           <div className="lg:col-span-4 flex flex-col gap-10">
-              
-              {/* Transaction Control Unit */}
-              <section className="bg-zinc-900 border border-white/10 rounded-[3rem] p-8 shadow-2xl sticky top-28">
-                 <div className="flex items-center gap-3 mb-8">
-                    <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
-                    <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">{editingTxId ? "Update Transaction" : "New Portfolio Record"}</h3>
-                 </div>
-                 <form onSubmit={handleSave} className="flex flex-col gap-5">
-                    <div className="flex bg-[#27272a]/50 p-1.5 rounded-2xl border border-white/5">
-                       <button type="button" onClick={() => setInputType("DEPOSIT")} className={`flex-1 py-3 text-[10px] font-black rounded-xl transition-all ${inputType === "DEPOSIT" ? "bg-zinc-100 text-black shadow-2xl" : "text-zinc-600 opacity-60"}`}>DEPOSIT</button>
-                       <button type="button" onClick={() => setInputType("WITHDRAW")} className={`flex-1 py-3 text-[10px] font-black rounded-xl transition-all ${inputType === "WITHDRAW" ? "bg-red-600/50 text-white" : "text-zinc-600 opacity-60"}`}>WITHDRAW</button>
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-2">
-                       {["BINANCE_TH", "BITKUB", "OKX"].map(b => (
-                         <button key={b} type="button" onClick={() => setInputBroker(b)} className={`py-3 text-[8px] font-black rounded-xl border transition-all ${inputBroker === b ? "bg-blue-600 border-blue-400 text-white shadow-xl" : "bg-[#27272a]/20 border-white/5 text-zinc-800"}`}>{b.replace("_", " ")}</button>
-                       ))}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                       <label className="text-[10px] font-black text-zinc-700 uppercase ml-2 tracking-widest">Select Asset</label>
-                       <select value={inputAsset} onChange={(e) => setInputAsset(e.target.value)} className="w-full bg-[#27272a]/60 border border-white/10 rounded-2xl p-4 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-600/20 appearance-none">
-                          {SUPPORTED_ASSETS.map(a => <option key={a} value={a}>{a}</option>)}
-                       </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                       <label className="text-[10px] font-black text-zinc-700 uppercase ml-2 tracking-widest">Amount Units</label>
-                       <input type="number" step="any" placeholder="0.00000000" value={inputAmount} onChange={(e) => setInputAmount(e.target.value)} className="w-full bg-[#27272a]/60 border border-white/10 rounded-2xl p-4 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-blue-500 placeholder:text-zinc-800" />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                       <label className="text-[10px] font-black text-zinc-700 uppercase ml-2 tracking-widest">Entry Date</label>
-                       <input type="date" value={inputDate} onChange={(e) => setInputDate(e.target.value)} className="w-full bg-[#27272a]/60 border border-white/10 rounded-2xl p-4 text-sm focus:outline-none text-zinc-500" />
-                    </div>
-
-                    <button type="submit" disabled={isSaving} className="w-full py-5 bg-gradient-to-r from-blue-700 to-indigo-600 text-white rounded-[2rem] font-black text-[11px] tracking-[0.4em] uppercase shadow-2xl active:scale-95 transition-all mt-4 border-t border-white/20">
-                       {isSaving ? "INJECTING..." : (editingTxId ? "UPDATE LOG" : "RECORD TO PORTFOLIO")}
-                    </button>
-                 </form>
-              </section>
-
-              {/* Execution Audit Trail */}
-              <section className="bg-zinc-900 border border-white/10 rounded-[3rem] p-8 shadow-2xl max-h-[600px] flex flex-col">
-                 <h3 className="text-xs font-black text-zinc-600 uppercase tracking-widest mb-6">Recent History (20)</h3>
-                 <div className="flex-1 overflow-y-auto pr-3 custom-scrollbar flex flex-col gap-4">
-                    {transactions.slice(0, 20).map(tx => (
-                      <div key={tx.id} className="p-5 bg-[#27272a]/40 rounded-3xl border border-white/5 flex flex-col gap-3 group group relative overflow-hidden">
-                         <div className="flex justify-between items-center relative z-10">
-                            <div>
-                               <p className={`text-xs font-black tracking-tight ${tx.type === "DEPOSIT" ? "text-green-500" : "text-red-500"}`}>{tx.type === "DEPOSIT" ? "+" : "-"}{parseFloat(tx.amount).toLocaleString()} {tx.asset}</p>
-                               <p className="text-[9px] font-bold text-zinc-700 mt-1 uppercase tracking-widest">{tx.broker} • {tx.date}</p>
-                            </div>
-                            <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                               <button onClick={() => { setEditingTxId(tx.id); setInputBroker(tx.broker); setInputAsset(tx.asset); setInputAmount(tx.amount); setInputType(tx.type); setInputDate(tx.date); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-[10px] font-black text-blue-500 hover:text-white">EDIT</button>
-                               <button onClick={() => handleDelete(tx.id)} className="text-[10px] font-black text-red-600 hover:text-white">DEL</button>
-                            </div>
-                         </div>
-                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${tx.type === "DEPOSIT" ? "bg-green-500" : "bg-red-500"} opacity-30`}></div>
                       </div>
-                    ))}
-                 </div>
-              </section>
-           </div>
+                    );
+                 })}
+              </div>
+           </section>
         </div>
+
+        {/* 📜 Master Audit Ledger (Full Width Bottom) */}
+        <section className="bg-zinc-900 border border-white/10 rounded-[3.5rem] p-10 shadow-2xl relative overflow-hidden group mb-12">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-600/30 to-transparent"></div>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-8">
+               <div className="flex items-center gap-7">
+                  <div className="w-16 h-16 bg-white/5 rounded-[1.8rem] flex items-center justify-center text-3xl border border-white/10 shadow-inner group-hover:scale-105 transition-transform duration-500">📜</div>
+                  <div>
+                    <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Transaction Audit Ledger</h3>
+                    <p className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.4em] mt-2 ml-0.5">Automated Portfolio Entry & Interaction History (Latest 30)</p>
+                  </div>
+               </div>
+               <div className="flex gap-4">
+                  <div className="px-6 py-3 bg-zinc-950 border border-white/10 rounded-2xl text-[10px] font-black text-zinc-500 uppercase tracking-widest italic">
+                     Immutable Snapshot Hub
+                  </div>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+               {transactions.slice(0, 30).map(tx => (
+                 <div key={tx.id} className="p-7 bg-white/[0.02] hover:bg-white/[0.04] rounded-[2.8rem] border border-white/5 flex flex-col gap-5 group/tx relative overflow-hidden transition-all hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+                    <div className="flex justify-between items-center relative z-10">
+                       <div className="flex items-center gap-5">
+                          <IconWithFallback asset={tx.asset} className="w-12 h-12 shadow-2xl group-hover/tx:scale-110 transition-transform" />
+                          <div>
+                             <p className={`text-base font-black tracking-tighter ${tx.type === "DEPOSIT" ? "text-blue-400" : "text-red-400"}`}>
+                                {tx.type === "DEPOSIT" ? "+" : "-"}{parseFloat(tx.amount).toLocaleString()} {tx.asset}
+                             </p>
+                             <p className="text-[10px] font-bold text-zinc-700 mt-1 uppercase tracking-widest italic">{tx.broker.replace("_", " ")} • {tx.date}</p>
+                          </div>
+                       </div>
+                       <div className="flex gap-5 opacity-0 group-hover/tx:opacity-100 transition-all translate-x-4 group-hover/tx:translate-x-0">
+                          <button onClick={() => { setEditingTxId(tx.id); setInputBroker(tx.broker); setInputAsset(tx.asset); setInputAmount(tx.amount); setInputType(tx.type); setInputDate(tx.date); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-[10px] font-black text-blue-500 hover:text-white transition-colors bg-blue-500/10 px-3 py-1.5 rounded-lg">EDIT</button>
+                          <button onClick={() => handleDelete(tx.id)} className="text-[10px] font-black text-red-600 hover:text-white transition-colors bg-red-600/10 px-3 py-1.5 rounded-lg">DEL</button>
+                       </div>
+                    </div>
+                    <div className={`absolute left-0 top-0 bottom-0 w-2 ${tx.type === "DEPOSIT" ? "bg-blue-600/40" : "bg-red-600/40"} group-hover:w-full transition-all duration-700 -z-0 opacity-10`}></div>
+                 </div>
+               ))}
+            </div>
+            
+            {transactions.length === 0 && (
+              <div className="py-24 flex flex-col items-center justify-center opacity-30">
+                 <div className="text-6xl mb-6">🏜️</div>
+                 <p className="text-sm font-black uppercase tracking-[0.5em] text-zinc-700 italic">No activity sequence detected</p>
+              </div>
+            )}
+         </section>
       </main>
 
       {/* 🏁 World-Class Footer */}
