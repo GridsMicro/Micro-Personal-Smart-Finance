@@ -1,315 +1,119 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSession, signOut } from "next-auth/react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  getTransactions,
-  saveTransaction,
-  deleteTransaction,
-} from "./actions/transactionActions";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 
-const FIAT_CURRENCIES = [
-  { symbol: "฿", code: "THB", name: "Thai Baht" },
-  { symbol: "$", code: "USD", name: "US Dollar" },
-];
+// Official Partner Logos
+const PartnerLogos = () => (
+  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-10 items-center justify-items-center opacity-60">
+    <a href="https://www.binance.th/th" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group transition-all duration-300 hover:opacity-100">
+       <img src="/coins/BINANCE-EX.png" className="h-5 object-contain" alt="binance-th" />
+       <span className="font-extrabold text-[10px] tracking-tighter text-white">Binance <span className="text-[#F3BA2F]">TH</span></span>
+    </a>
+    <a href="https://www.bitkub.com/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group transition-all duration-300 hover:opacity-100">
+       <img src="/coins/BITKUB-EX.png" className="h-5 object-contain" alt="bitkub" />
+       <span className="font-black text-[10px] tracking-tighter text-[#00E08F]">Bitkub</span>
+    </a>
+    <a href="https://www.okx.com/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group transition-all duration-300 hover:opacity-100">
+       <img src="/coins/OKX_logo.svg.png" className="h-5 object-contain brightness-200 contrast-200" alt="okx" />
+       <span className="font-black text-[10px] tracking-tighter text-white">OKX GLOBAL</span>
+    </a>
+    <a href="https://coinmarketcap.com/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group transition-all duration-300 hover:opacity-100">
+       <div className="w-5 h-5 bg-[#3861fb] rounded-full flex items-center justify-center text-[8px] font-bold">M</div>
+       <span className="font-black text-[10px] tracking-tighter text-white">CoinMarketCap</span>
+    </a>
+    <a href="https://www.coingecko.com/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group transition-all duration-300 hover:opacity-100">
+       <div className="w-5 h-5 bg-[#8cc63f] rounded-full flex items-center justify-center text-[8px] font-bold">G</div>
+       <span className="font-black text-[10px] tracking-tighter text-white">CoinGecko</span>
+    </a>
+  </div>
+);
 
-const SUPPORTED_ASSETS = ["BTC", "ETH", "SOL", "USDT"];
-const ASSET_LOGOS: Record<string, string> = {
-  BTC: "https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg",
-  ETH: "https://upload.wikimedia.org/wikipedia/commons/0/05/Ethereum_logo_2014.svg",
-  SOL: "https://upload.wikimedia.org/wikipedia/en/b/b9/Solana_logo.png",
-  USDT: "https://upload.wikimedia.org/wikipedia/commons/e/ec/Tether_Logo.svg",
-};
-
-export default function Home() {
+export default function LandingPage() {
   const { data: session } = useSession();
-  const [baseFiat, setBaseFiat] = useState(FIAT_CURRENCIES[0]);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [pricesUSD, setPricesUSD] = useState<Record<string, number>>({
-    BTC: 0,
-    ETH: 0,
-    SOL: 0,
-    USDT: 1,
-  });
-  const [exchangeRateUSDTHB, setExchangeRateUSDTHB] = useState<number>(35);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Form states
-  const [inputType, setInputType] = useState<string>("DEPOSIT");
-  const [inputAsset, setInputAsset] = useState("BTC");
-  const [inputAmount, setInputAmount] = useState("");
-  const [inputNote, setInputNote] = useState("");
-  const [inputDate, setInputDate] = useState(
-    () => new Date().toISOString().split("T")[0]
-  );
-  const [editingTxId, setEditingTxId] = useState<number | null>(null);
-
-  // Load Initial Data
-  useEffect(() => {
-    const loadData = async () => {
-      const data = await getTransactions();
-      setTransactions(data);
-    };
-    if (session) loadData();
-  }, [session]);
-
-  // Fetch Exchange Rate & Prices
-  useEffect(() => {
-    const fetchRates = async () => {
-      try {
-        const res = await fetch("https://open.er-api.com/v6/latest/USD");
-        const data = await res.json();
-        if (data?.rates?.THB) setExchangeRateUSDTHB(data.rates.THB);
-      } catch (e) {}
-    };
-    fetchRates();
-
-    const fetchPrices = async () => {
-      try {
-        setIsUpdating(true);
-        const symbols = '["BTCUSDT","ETHUSDT","SOLUSDT"]';
-        const res = await fetch(
-          `https://api.binance.com/api/v3/ticker/price?symbols=${symbols}`
-        );
-        const data = await res.json();
-        const newPrices: Record<string, number> = { USDT: 1 };
-        data.forEach((item: any) => {
-          newPrices[item.symbol.replace("USDT", "")] = parseFloat(item.price);
-        });
-        setPricesUSD(newPrices);
-        setIsUpdating(false);
-      } catch (e) {
-        setIsUpdating(false);
-      }
-    };
-    fetchPrices();
-    const interval = setInterval(fetchPrices, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const getAssetValueInFiat = (asset: string, amount: number) => {
-    const priceInUSD = pricesUSD[asset] || 0;
-    const valueInUSD = amount * priceInUSD;
-    return baseFiat.code === "THB" ? valueInUSD * exchangeRateUSDTHB : valueInUSD;
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputAmount || Number(inputAmount) <= 0) return;
-
-    setIsSaving(true);
-    try {
-      await saveTransaction({
-        id: editingTxId || undefined,
-        asset: inputAsset,
-        amount: inputAmount,
-        type: inputType,
-        note: inputNote,
-        date: inputDate,
-      });
-      // Reload Transactions
-      const data = await getTransactions();
-      setTransactions(data);
-      
-      // Reset Form
-      setEditingTxId(null);
-      setInputAmount("");
-      setInputNote("");
-    } catch (e) {
-      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-    }
-    setIsSaving(false);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm("ยืนยันการลบรายการนี้?")) return;
-    try {
-      await deleteTransaction(id);
-      setTransactions(transactions.filter((tx) => tx.id !== id));
-    } catch (e) {
-      alert("ไม่สามารถลบข้อมูลได้");
-    }
-  };
-
-  const portfolio = transactions.reduce((acc, tx) => {
-    const amount = parseFloat(tx.amount);
-    if (!acc[tx.asset]) acc[tx.asset] = 0;
-    if (tx.type === "DEPOSIT") acc[tx.asset] += amount;
-    else acc[tx.asset] -= amount;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const totalValue = Object.entries(portfolio).reduce((total, [asset, amount]) => {
-    return total + getAssetValueInFiat(asset, amount as number);
-  }, 0);
-
-  const monthlyDataMap = transactions.reduce((acc, tx) => {
-    const month = tx.date.substring(0, 7);
-    if (!acc[month]) acc[month] = { month, "ซื้อสะสม": 0, "ขายออก": 0 };
-    const value = getAssetValueInFiat(tx.asset, parseFloat(tx.amount));
-    if (tx.type === "DEPOSIT") acc[month]["ซื้อสะสม"] += value;
-    else acc[month]["ขายออก"] += value;
-    return acc;
-  }, {} as Record<string, any>);
-  const monthlyData = Object.keys(monthlyDataMap).sort().map(k => monthlyDataMap[k]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center p-6 md:p-12 lg:p-24 bg-gray-50 dark:bg-zinc-950 font-sans">
-      <div className="w-full max-w-5xl mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
-          {session?.user?.image && (
-            <img src={session.user.image} className="w-12 h-12 rounded-full border-2 border-blue-500 p-0.5 shadow-md" alt="User" />
-          )}
+    <div className="min-h-screen bg-[#27272a] text-white font-sans selection:bg-blue-600/30 overflow-x-hidden">
+      
+      {/* 🚀 Header Area */}
+      <nav className="h-24 px-8 max-w-[1400px] mx-auto flex justify-between items-center border-b border-white/5 bg-[#27272a]/95 backdrop-blur-xl sticky top-0 z-[100]">
+        <div className="flex items-center gap-4 group">
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-black font-black text-xl shadow-2xl transition-transform group-hover:scale-110">SP</div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              Smart Planner
-              {isUpdating && (
-                <span className="flex h-3 w-3 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-              )}
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              สวัสดีคุณ {session?.user?.name || "นักลงทุน"} 👋 แดชบอร์ดข้อมูลจริง
-            </p>
+            <h1 className="font-black text-xl tracking-tighter uppercase leading-none">SMART PLANNER</h1>
+            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5 ml-0.5">Automated Finance</p>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          <select
-            value={baseFiat.code}
-            onChange={(e) => {
-              const selected = FIAT_CURRENCIES.find((c) => c.code === e.target.value);
-              if (selected) setBaseFiat(selected);
-            }}
-            className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 font-bold focus:outline-none shadow-sm cursor-pointer"
-          >
-            {FIAT_CURRENCIES.map(fiat => (
-              <option key={fiat.code} value={fiat.code}>{fiat.code} ({fiat.symbol})</option>
-            ))}
-          </select>
-          <button
-            onClick={() => signOut()}
-            className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-600 font-bold rounded-lg transition-colors flex items-center gap-2"
-          >
-            <span>🚪</span> ออกจากระบบ
-          </button>
+        <div className="hidden lg:flex items-center gap-10">
+          <Link href="/market" className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 hover:text-white transition-all">Live Market</Link>
+          {session ? (
+            <Link href="/dashboard" className="px-6 py-2.5 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-105 transition-all shadow-xl shadow-white/10">Launch Dashboard</Link>
+          ) : (
+            <Link href="/login" className="px-6 py-2.5 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-105 transition-all shadow-xl shadow-white/10">Sign In (Login)</Link>
+          )}
         </div>
-      </div>
+      </nav>
 
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Col */}
-        <div className="lg:col-span-1 flex flex-col gap-6">
-          <div className="p-6 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-lg text-white">
-            <h2 className="text-blue-100 text-sm font-medium">มูลค่าพอร์ตรวมจริง</h2>
-            <div className="mt-4 flex items-baseline gap-2">
-              <span className="text-4xl font-bold">{baseFiat.symbol}</span>
-              <span className="text-4xl font-bold transition-opacity">
-                {totalValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
+      {/* 🔮 Hero Section (Visionary) */}
+      <section className="relative px-6 py-32 flex flex-col items-center text-center">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-blue-600/10 blur-[150px] -z-10 rounded-full"></div>
+        <div className="inline-block px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-[10px] font-black tracking-widest uppercase text-blue-400 mb-8 animate-pulse shadow-2xl">⚡ Next-Gen Asset Management Node</div>
+        
+        <h1 className="text-6xl md:text-8xl font-black tracking-tighter max-w-[1000px] mb-8 leading-[0.95]">
+           ปฏิวัติอนาคต<br /><span className="bg-gradient-to-r from-blue-500 via-indigo-400 to-cyan-300 bg-clip-text text-transparent">การวางแผนอัจฉริยะ</span>
+        </h1>
+        
+        <p className="text-zinc-500 text-lg md:text-xl font-bold max-w-[700px] mb-12 tracking-tight">
+          ระบบบริหารจัดการสินทรัพย์ดิจิทัลระดับสูงที่ให้คุณครอบคลุมทุกการเคลื่อนไหวของพอร์ตโฟลิโอ 
+          ด้วยระบบ Smart Autopilot และแม่นยำที่สุดผ่าน Smart Planner
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-6 mb-20 scale-110">
+          <Link href="/dashboard" className="px-10 py-5 bg-gradient-to-tr from-blue-700 to-indigo-600 rounded-[2rem] text-sm font-black uppercase tracking-[0.3em] hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/30 transition-all border-t border-white/20">
+             เริ่มต้นใช้งานตอนนี้ 🚀
+          </Link>
+          <Link href="/market" className="px-10 py-5 bg-white/5 border border-white/10 rounded-[2rem] text-sm font-black uppercase tracking-[0.3em] hover:bg-white/10 transition-all flex items-center justify-center gap-3 group">
+             ดูความเคลื่อนไหวตลาด <span className="group-hover:translate-x-1 transition-transform">→</span>
+          </Link>
+        </div>
+
+        {/* 📊 Feature Teaser */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-[1200px] mx-auto mt-20">
+          {[
+            { title: "24/7 TRACKING", sub: "ตรวจสอบสินทรัพย์ทั่วโลกแบบเรียลไทม์ ตลอด 24 ชั่วโมง ไม่มีหยุดพัก" },
+            { title: "MULTI-EXCHANGE", sub: "รวมศูนย์ข้อมูลจาก Binance TH, Bitkub และ OKX ไว้ในหน้าจอเดียว" },
+            { title: "DCA SIMULATOR", sub: "จำลองการลงทุนแบบอัตโนมัติ เพื่อวางแผนอนาคตที่มั่นคงและแม่นยำ" }
+          ].map(f => (
+            <div key={f.title} className="p-10 bg-white/5 border border-white/5 rounded-[3rem] text-left hover:bg-white/[0.07] transition-all group">
+               <div className="w-12 h-1 text-blue-500 bg-blue-500 mb-6 transition-all group-hover:w-full opacity-60"></div>
+               <h4 className="text-[12px] font-black tracking-[0.5em] text-white/40 mb-3">{f.title}</h4>
+               <p className="text-lg font-bold text-white tracking-tight leading-snug">{f.sub}</p>
             </div>
-          </div>
-
-          <div className="p-6 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm">
-            <h2 className="font-semibold text-lg text-gray-900 dark:text-white mb-4">
-              {editingTxId ? "แก้ไขรายการ ✏️" : "บันทึกพอร์ต 📝"}
-            </h2>
-            <form onSubmit={handleSave} className="flex flex-col gap-4">
-              <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg">
-                <button type="button" onClick={() => setInputType("DEPOSIT")}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${inputType === "DEPOSIT" ? "bg-white dark:bg-zinc-700 shadow-sm text-green-600" : "text-gray-500"}`}>ซื้อ/ฝาก</button>
-                <button type="button" onClick={() => setInputType("WITHDRAW")}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${inputType === "WITHDRAW" ? "bg-white dark:bg-zinc-700 shadow-sm text-red-600" : "text-gray-500"}`}>ขาย/ถอน</button>
-              </div>
-              <select value={inputAsset} onChange={(e) => setInputAsset(e.target.value)}
-                className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-lg bg-gray-50 dark:bg-zinc-800 outline-none">
-                {SUPPORTED_ASSETS.map((coin) => (
-                  <option key={coin} value={coin}>{coin} (${pricesUSD[coin]?.toLocaleString()})</option>
-                ))}
-              </select>
-              <input type="date" value={inputDate} onChange={(e) => setInputDate(e.target.value)}
-                className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-lg bg-gray-50 dark:bg-zinc-800 outline-none" />
-              <input type="number" step="0.00000001" placeholder="จำนวนเหรียญ" value={inputAmount} onChange={(e) => setInputAmount(e.target.value)}
-                className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-lg bg-gray-50 dark:bg-zinc-800 outline-none" />
-              <input type="text" placeholder="หมายเหตุ" value={inputNote} onChange={(e) => setInputNote(e.target.value)}
-                className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-lg bg-gray-50 dark:bg-zinc-800 outline-none" />
-              <button type="submit" disabled={isSaving}
-                className={`w-full py-3 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 ${editingTxId ? "bg-amber-500" : "bg-gray-900 dark:bg-white dark:text-zinc-950"} disabled:opacity-50`}>
-                {isSaving ? "กำลังบันทึก..." : (editingTxId ? "อัปเดตข้อมูล" : "บันทึกลงพอร์ต")}
-              </button>
-              {editingTxId && <button type="button" onClick={() => { setEditingTxId(null); setInputAmount(""); }} className="text-sm font-bold text-gray-500 hover:text-gray-700 mt-1">ยกเลิก</button>}
-            </form>
-          </div>
+          ))}
         </div>
+      </section>
 
-        {/* Right Col */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          <div className="p-6 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm">
-             <h2 className="font-semibold text-lg text-gray-900 dark:text-white mb-4">สินทรัพย์ที่ถือครองจริง</h2>
-             {Object.keys(portfolio).length === 0 ? (
-               <p className="text-gray-500 text-center py-8">ยังไม่มีเหรียญในพอร์ต... ลองบันทึกดูสิ! ✨</p>
-             ) : (
-                <div className="flex flex-col gap-3">
-                  {Object.entries(portfolio).map(([asset, amount]) => {
-                    const amt = amount as number;
-                    if (amt <= 0) return null;
-                    const val = getAssetValueInFiat(asset, amt);
-                    return (
-                      <div key={asset} className="flex justify-between items-center p-3 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-xl transition-colors">
-                        <div className="flex items-center gap-3">
-                          <img src={ASSET_LOGOS[asset]} alt={asset} className="w-8 h-8 object-contain" />
-                          <p className="font-semibold text-gray-900 dark:text-white">{amt.toLocaleString()} {asset}</p>
-                        </div>
-                        <p className="font-bold text-gray-900 dark:text-white">
-                          {baseFiat.symbol}{val.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                    )
-                  })}
-                </div>
-             )}
-          </div>
+      {/* 🏁 Footer Area */}
+      <footer className="mt-40 border-t border-white/5 py-24 px-6 bg-black/10">
+         <div className="max-w-[1400px] mx-auto flex flex-col items-center gap-12">
+            <div className="text-center">
+               <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] mb-10">Trusted Global Data Partners</h3>
+               <PartnerLogos />
+            </div>
+            <div className="h-px w-20 bg-white/10"></div>
+            <div className="flex flex-col items-center gap-4 opacity-40">
+               <div className="flex gap-8 text-[11px] font-black uppercase tracking-widest text-zinc-500">
+                  <Link href="/dashboard" className="hover:text-white">Privacy Policy</Link>
+                  <Link href="/market" className="hover:text-white">Terms of Service</Link>
+                  <a href="https://github.com/GridsMicro" className="hover:text-white">Contact Node</a>
+               </div>
+               <p className="text-[10px] font-black text-zinc-700 uppercase tracking-[0.2em] mt-4">© 2026 SMART PLANNER • DESIGNED FOR THE ELITE EXPLORER</p>
+            </div>
+         </div>
+      </footer>
 
-          <div className="p-6 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm">
-             <h2 className="font-semibold text-lg text-gray-900 dark:text-white mb-4">ประวัติจากฐานข้อมูล (Neon DB)</h2>
-             <div className="flex flex-col gap-2">
-                {transactions.slice(0, 5).map(tx => (
-                  <div key={tx.id} className="flex justify-between items-center py-3 border-b border-gray-100 dark:border-zinc-800 last:border-0 text-sm">
-                    <div className="flex flex-col">
-                      <span className={`font-bold ${tx.type === "DEPOSIT" ? "text-green-600" : "text-red-500"}`}>
-                        {tx.type === "DEPOSIT" ? "+" : "-"}{parseFloat(tx.amount).toLocaleString()} {tx.asset}
-                      </span>
-                      <span className="text-xs text-gray-500">{tx.date} • {tx.note || "ไม่มีหมายเหตุ"}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => {
-                        setEditingTxId(tx.id);
-                        setInputType(tx.type);
-                        setInputAsset(tx.asset);
-                        setInputAmount(tx.amount);
-                        setInputNote(tx.note || "");
-                        setInputDate(tx.date);
-                      }} className="text-xs font-bold text-blue-500">แก้</button>
-                      <button onClick={() => handleDelete(tx.id)} className="text-xs font-bold text-red-500">ลบ</button>
-                    </div>
-                  </div>
-                ))}
-             </div>
-          </div>
-        </div>
-      </div>
+      {/* 🌊 Background Noise/Texture (Subtle) */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/pinstriped-dark.png')]"></div>
     </div>
   );
 }

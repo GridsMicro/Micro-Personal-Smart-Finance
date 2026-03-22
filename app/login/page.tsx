@@ -20,7 +20,7 @@ export default function LoginPage() {
     // ตรวจสอบกับ API Service กลาง (มาตรฐาน SuperAdmin)
     const superAdminRes = await loginWithSuperAdmin(email, password);
     if (superAdminRes.success) {
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
       return;
     }
@@ -35,7 +35,7 @@ export default function LoginPage() {
     setError(null);
     
     try {
-      await signIn("google", { callbackUrl: "/" });
+      await signIn("google", { callbackUrl: "/dashboard" });
     } catch (err: any) {
       setError("เกิดข้อผิดพลาดในการเชื่อมต่อกับ Google");
       setLoading(false);
@@ -43,8 +43,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-zinc-950 font-sans p-6">
-      <div className="w-full max-w-md p-8 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-3xl shadow-xl">
+    <div className="flex min-h-screen items-center justify-center bg-[#27272a] font-sans p-6">
+      <div className="w-full max-w-md p-8 bg-[#27272a] border border-white/5 rounded-3xl shadow-xl">
         
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">Smart Planner</h1>

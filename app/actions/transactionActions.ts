@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "../db";
-import { transactions } from "../db/schema";
-import { desc, eq } from "drizzle-orm";
+import { transactions, dailySnapshots } from "../db/schema";
+import { and, desc, eq } from "drizzle-orm";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
@@ -22,10 +22,12 @@ export async function getTransactions() {
 // เพิ่มหรือแก้ไข Transaction
 export async function saveTransaction(data: {
   id?: number;
+  broker: string;
   asset: string;
   amount: string;
+  price?: string;
   type: string;
-  note: string;
+  note?: string;
   date: string;
 }) {
   const session = await getServerSession(authOptions);
@@ -36,27 +38,30 @@ export async function saveTransaction(data: {
     await db
       .update(transactions)
       .set({
+        broker: data.broker,
         asset: data.asset,
         amount: data.amount,
+        price: data.price,
         type: data.type,
-        note: data.note,
+        note: data.note ?? "",
         date: data.date,
       })
-      .where(eq(transactions.id, data.id))
-      .where(eq(transactions.userId, session.user.id)); // ตรวจสอบ ID ผู้เข้าถึง
+      .where(and(eq(transactions.id, data.id), eq(transactions.userId, session.user.id)));
   } else {
     // เพิ่มใหม่
     await db.insert(transactions).values({
       userId: session.user.id,
+      broker: data.broker,
       asset: data.asset,
       amount: data.amount,
+      price: data.price,
       type: data.type,
-      note: data.note,
+      note: data.note ?? "",
       date: data.date,
     });
   }
 
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 
@@ -66,9 +71,20 @@ export async function deleteTransaction(id: number) {
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   await db.delete(transactions)
-    .where(eq(transactions.id, id))
-    .where(eq(transactions.userId, session.user.id)); // ตรวจสอบ ID ผู้เข้าถึง
+    .where(and(eq(transactions.id, id), eq(transactions.userId, session.user.id)));
   
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   return { success: true };
+}
+
+// ดึงข้อมูล Snapshot รายวันสำหรับวาดกราฟ
+export async function getDailySnapshots() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return [];
+
+  return await db
+    .select()
+    .from(dailySnapshots)
+    .where(eq(dailySnapshots.userId, session.user.id))
+    .orderBy(dailySnapshots.date);
 }
