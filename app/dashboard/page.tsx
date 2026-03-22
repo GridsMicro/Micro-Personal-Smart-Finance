@@ -28,7 +28,7 @@ const FIAT_CURRENCIES = [
   { symbol: "$", code: "USD", name: "US Dollar" },
 ];
 
-const SUPPORTED_ASSETS = ["BTC", "ETH", "SOL", "USDT", "XRP", "DOGE", "ADA", "BNB", "USDC", "ORDI", "MOODENG", "GOAT", "AVAX", "SATS"];
+const SUPPORTED_ASSETS = ["BTC", "ETH", "SOL", "USDT", "XRP", "DOGE", "ADA", "BNB", "USDC", "ORDI", "MOODENG", "GOAT", "AVAX", "SATS", "DOT", "NEAR", "TRX", "LINK", "MATIC"];
 
 const ASSET_LOGOS: Record<string, string> = {
   BTC: "/coins/BTC.svg",
@@ -45,6 +45,11 @@ const ASSET_LOGOS: Record<string, string> = {
   GOAT: "/coins/GOAT.jpg",
   AVAX: "/coins/AVAX.png",
   SATS: "/coins/SATS.png",
+  DOT: "/coins/DOT.svg",
+  NEAR: "/coins/NEAR.svg",
+  TRX: "/coins/TRX.svg",
+  LINK: "/coins/LINK.svg",
+  MATIC: "/coins/MATIC.svg",
 };
 
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#06B6D4", "#F97316"];

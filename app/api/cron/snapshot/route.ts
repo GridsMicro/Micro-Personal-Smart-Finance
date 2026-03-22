@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     console.log("🚀 Starting Daily Snapshot Cron (6:00 AM)...");
 
     // 1. Fetch current prices
-    const symbols = ["BTC", "ETH", "SOL", "USDT", "XRP", "DOGE", "ADA", "USDC", "ORDI", "MOODENG", "GOAT", "AVAX", "SATS", "BNB"];
+    const symbols = ["BTC", "ETH", "SOL", "USDT", "XRP", "DOGE", "ADA", "USDC", "ORDI", "MOODENG", "GOAT", "AVAX", "SATS", "BNB", "DOT", "NEAR", "TRX", "LINK", "MATIC"];
     
     // Fetch prices (reuse logic from ticker API)
     const [binanceThRes, bitkubRes, okxRes, fxRes] = await Promise.all([
