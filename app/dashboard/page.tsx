@@ -143,6 +143,7 @@ export default function Home() {
   const filteredAssets = useMemo(() => {
     return Object.values(portfolioByBrokerAsset).filter((item: any) => {
       if (selectedExchange && item.broker !== selectedExchange) return false;
+      if (item.broker === "SYSTEM_RECONCILE") return false;
       return Math.abs(item.amount) > 0.00000001;
     }).sort((a: any, b: any) => b.amount - a.amount);
   }, [portfolioByBrokerAsset, selectedExchange]);
