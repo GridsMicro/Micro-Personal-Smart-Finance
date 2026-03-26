@@ -33,3 +33,7 @@ npm run dev
 ```
 
 เปิด [http://localhost:3000](http://localhost:3000) บนบราว์เซอร์ของคุณ เพื่อคว้าอิสรภาพทางการเงิน และร่วมออกแบบโลกแห่งนวัตกรรมสีเขียวรอบตัวคุณ 🌿
+
+เพิ่มปุ่ม DONATE
+
+เพิ่มลิงค์ landding page + app https://micro-personal-smart-finance.vercel.app/
