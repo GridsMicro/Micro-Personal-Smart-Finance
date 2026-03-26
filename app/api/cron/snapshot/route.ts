@@ -5,125 +5,126 @@ import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
+// 🛡️ CRON_SECRET for security
+const CRON_SECRET = process.env.CRON_SECRET || "master-planner-secret-2026";
+
 export async function GET(req: Request) {
-  // Simple auth check for internal cron
+  // 1. Security Check
   const authHeader = req.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    // return new Response('Unauthorized', { status: 401 });
-    // For now, let it pass for development
+  if (process.env.NODE_ENV === "production" && authHeader !== `Bearer ${CRON_SECRET}`) {
+    return new Response('Unauthorized', { status: 401 });
   }
 
   try {
-    console.log("🚀 Starting Daily Snapshot Cron (6:00 AM)...");
-
-    // 1. Fetch current prices
+    const today = new Date().toISOString().split("T")[0];
     const symbols = ["BTC", "ETH", "SOL", "USDT", "XRP", "DOGE", "ADA", "USDC", "ORDI", "MOODENG", "GOAT", "AVAX", "SATS", "BNB", "DOT", "NEAR", "TRX", "LINK", "MATIC"];
     
-    // Fetch prices (reuse logic from ticker API)
-    const [binanceThRes, bitkubRes, okxRes, fxRes] = await Promise.all([
+    // 2. Pulling Price (Standard Application Logic)
+    const [binanceThRes, bitkubRes, okxRes, fxRes] = await Promise.allSettled([
       fetch("https://api.binance.th/api/v3/ticker/price").then(r => r.json()),
       fetch("https://api.bitkub.com/api/market/ticker").then(r => r.json()),
-      fetch("https://www.okx.com/api/v5/market/tickers?instType=SPOT").then(r => r.json()),
+      fetch("https://www.okx.com/api/v5/market/tickers?instType=SPOT", { signal: AbortSignal.timeout(3500) }).then(r => r.json()),
       fetch("https://open.er-api.com/v6/latest/USD").then(r => r.json())
     ]);
 
-    const activeRate = fxRes?.rates?.THB || 35;
+    const usdRate = (fxRes.status === "fulfilled" ? fxRes.value?.rates?.THB : 36) || 36;
     const marketMap: any = { binance: {}, bitkub: {}, okx: {} };
 
-    // Process Binance TH
-    if (Array.isArray(binanceThRes)) {
-      binanceThRes.forEach((item: any) => {
+    if (binanceThRes.status === "fulfilled") {
+      binanceThRes.value.forEach((item: any) => {
         if (item.symbol.endsWith("THB")) {
           const coin = item.symbol.replace("THB", "");
-          marketMap.binance[coin] = parseFloat(item.price);
+          if (symbols.includes(coin)) marketMap.binance[coin] = parseFloat(item.price);
         }
       });
     }
 
-    // Process Bitkub
-    symbols.forEach(coin => {
-      const key = `THB_${coin}`;
-      if (bitkubRes[key]) marketMap.bitkub[coin] = bitkubRes[key].last;
-    });
+    if (bitkubRes.status === "fulfilled") {
+      symbols.forEach(coin => {
+        const key = `THB_${coin}`;
+        if (bitkubRes.value[key]) marketMap.bitkub[coin] = bitkubRes.value[key].last;
+      });
+    }
 
-    // Process OKX
-    if (okxRes.data && Array.isArray(okxRes.data)) {
-      okxRes.data.forEach((item: any) => {
+    if (okxRes.status === "fulfilled" && okxRes.value.data) {
+      okxRes.value.data.forEach((item: any) => {
         if (item.instId.endsWith("-USDT")) {
           const coin = item.instId.replace("-USDT", "");
-          marketMap.okx[coin] = parseFloat(item.last);
+          if (symbols.includes(coin)) marketMap.okx[coin] = parseFloat(item.last);
         }
       });
     }
 
-    // 2. Process each user's portfolio
+    // 3. Process Daily Snapshot for Each User (Value + Quantity)
     const allUsers = await db.select().from(users);
-    const today = new Date().toISOString().split("T")[0];
 
     for (const user of allUsers) {
       const userTxs = await db.select().from(transactions).where(eq(transactions.userId, user.id));
       
-      // Calculate Holdings
-      const holdings: Record<string, { amount: number, broker: string }> = {};
+      const holdings: Record<string, number> = {};
+      const brokerHoldings: Record<string, { amount: number, broker: string, asset: string }> = {};
+
       userTxs.forEach(tx => {
-        const key = `${tx.broker}_${tx.asset}`;
-        if (!holdings[key]) holdings[key] = { amount: 0, broker: tx.broker };
-        if (tx.type === "DEPOSIT") holdings[key].amount += parseFloat(tx.amount);
-        else holdings[key].amount -= parseFloat(tx.amount);
+        const amt = parseFloat(tx.amount || "0");
+        const bKey = `${tx.broker}_${tx.asset}`;
+        if (!holdings[tx.asset]) holdings[tx.asset] = 0;
+        if (!brokerHoldings[bKey]) brokerHoldings[bKey] = { amount: 0, broker: tx.broker, asset: tx.asset };
+        
+        if (tx.type === "DEPOSIT") {
+           holdings[tx.asset] += amt;
+           brokerHoldings[bKey].amount += amt;
+        } else {
+           holdings[tx.asset] -= amt;
+           brokerHoldings[bKey].amount -= amt;
+        }
       });
 
-      // Calculate Total Value in THB
-      let totalValueTHB = 0;
-      Object.entries(holdings).forEach(([_, item]) => {
-        const asset = (item as any).asset || _.split("_")[1];
+      // Calculate Net Worth based on the original Dashboard logic
+      let netWorthTHB = 0;
+      Object.entries(brokerHoldings).forEach(([_, item]) => {
+        const asset = item.asset;
         const broker = item.broker;
         const amount = item.amount;
 
-        // Price Logic
         let price = 0;
         const src = broker.toLowerCase().replace("_th", "");
         if (marketMap[src] && marketMap[src][asset]) {
           price = marketMap[src][asset];
-          if (src === "okx") price *= activeRate; // OKX is USD
+          if (src === "okx") price *= usdRate;
         } else if (marketMap.bitkub[asset]) {
-           price = marketMap.bitkub[asset];
+          price = marketMap.bitkub[asset];
         } else if (marketMap.binance[asset]) {
-           price = marketMap.binance[asset];
+          price = marketMap.binance[asset];
         } else if (asset === "USDT" || asset === "USDC") {
-           price = activeRate;
+          price = usdRate;
+        } else if (asset === "THB") {
+          price = 1;
         }
 
-        totalValueTHB += (amount * price);
+        netWorthTHB += (amount * price);
       });
 
-      // 3. Save snapshot with individual holdings
-      if (totalValueTHB > 0) {
-        // Prepare simplified holdings for tracking (e.g. {BTC: 0.5, ETH: 1.2})
-        const simpleHoldings: Record<string, number> = {};
-        Object.entries(holdings).forEach(([_, item]) => {
-           const asset = (item as any).asset || _.split("_")[1];
-           simpleHoldings[asset] = (simpleHoldings[asset] || 0) + item.amount;
-        });
-
+      if (Object.keys(holdings).length > 0) {
         await db.insert(dailySnapshots).values({
           userId: user.id,
-          totalValue: totalValueTHB.toFixed(2),
-          holdingsJson: simpleHoldings,
+          totalValue: netWorthTHB.toFixed(2),
+          holdingsJson: holdings,
           fiatCode: "THB",
           date: today
         }).onConflictDoUpdate({
           target: [dailySnapshots.userId, dailySnapshots.date],
-          set: { 
-            totalValue: totalValueTHB.toFixed(2),
-            holdingsJson: simpleHoldings
+          set: {
+            totalValue: netWorthTHB.toFixed(2),
+            holdingsJson: holdings
           }
         });
       }
     }
 
     return NextResponse.json({ success: true, date: today });
+
   } catch (error: any) {
-    console.error("Cron Error:", error);
+    console.error("6AM CRON MASTER FAILED:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

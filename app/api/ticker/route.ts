@@ -10,14 +10,24 @@ export async function GET() {
     const [binanceThRes, bitkubRes, okxRes] = await Promise.allSettled([
       fetch("https://api.binance.th/api/v3/ticker/price", { next: { revalidate: 10 } }),
       fetch("https://api.bitkub.com/api/market/ticker", { next: { revalidate: 10 } }),
-      fetch("https://www.okx.com/api/v5/market/tickers?instType=SPOT", { next: { revalidate: 10 } }), // Fix plural tickers
+      fetch("https://www.okx.com/api/v5/market/tickers?instType=SPOT", { 
+        next: { revalidate: 10 },
+        signal: AbortSignal.timeout(3500) // Lower timeout for OKX
+      })
     ]);
 
-    console.log("Tickers Fetch Status:", {
+    // Handle the statuses without crashing on ENOTFOUND
+    const logData: any = {
        binanceTH: binanceThRes.status,
        bitkub: bitkubRes.status,
-       okx: okxRes.status
-    });
+    };
+    if (okxRes.status === 'rejected') {
+       console.log("OKX Fetch Failed (likely DNS/Blocked):", okxRes.reason?.message);
+       logData.okx = "failed_or_blocked";
+    } else {
+       logData.okx = okxRes.value.ok ? "fulfilled" : "http_error";
+    }
+    console.log("Tickers Fetch Status:", logData);
 
     const results: any = {
       binance: {}, // Keep key as binance for compatibility but use TH data
