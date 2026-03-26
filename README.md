@@ -1,32 +1,35 @@
-# The Smart Planner
+# 🌍 The Smart Planner: บริหารพอร์ตการเงินสู่อนาคตที่ยั่งยืน
 
-Personal Finance SaaS - ที่ปรึกษาทางการเงินจำลอง
+**"ทรานส์ฟอร์มทุกตัวเลข ให้เป็นพลังในการขับเคลื่อนนวัตกรรมสีเขียวและการเติบโตที่ไร้ขีดจำกัด"**
 
-## Features
-- Interactive Cashflow Slider
-- Automatic Categorization (AI)
-- Financial Health Dashboard (50/30/20)
-- Recurring Engine
+สัมผัสประสบการณ์ **Next-Gen Wealth Management System** ที่เปลี่ยนการจัดการความมั่งคั่งให้เป็นเรื่องง่ายและทรงพลัง ด้วยระบบติดตามพอร์ตโฟลิโอสินทรัพย์ดิจิทัลและกระแสเงินสดแบบเรียลไทม์ (Real-time Portfolio Tracker) ผสานเทคโนโลยีอัตโนมัติ (Autopilot) ที่ยกระดับชีวิตคุณให้มีอิสรภาพทางการเงิน พร้อมร่วมเป็นส่วนหนึ่งในการสนับสนุนเศรษฐกิจสร้างสรรค์และระบบนิเวศนวัตกรรมที่เป็นมิตรต่อสิ่งแวดล้อม 
 
-## Tech Stack
-- Next.js (App Router)
-- TypeScript 5
-- Tailwind CSS 4
-- Shadcn/ui (Planned)
-- Supabase (Planned)
+## 🌟 ฟีเจอร์ชูโรง (Key Innovations)
 
-## Getting Started
+- **Global Asset Valuation:** ดึงราคาสินทรัพย์ดิจิทัล (Crypto Tickers) จากศูนย์ซื้อขายระดับโลก ทั้ง Binance, OKX และ Bitkub เพื่อประเมินมูลค่ารวม (Net Worth) อย่างแม่นยำ ทุกเสี้ยววินาที
+- **Smart Position Ledger:** กระดานข้อมูลสินทรัพย์แบบครบวงจร (Combined View) ที่ช่วยวิเคราะห์สัดส่วนพอร์ตโฟลิโอ ตัดข้อมูลขยะให้เหลือเพียงส่วนผสมทางการเงินที่ทรงพลัง
+- **Autopilot Data Collection:** ระบบถ่ายรูปรวมพอร์ตอัตโนมัติรายวัน (Daily Snapshot) วิเคราะห์ Momentum การสะสมทรัพย์ให้คุณแบบไม่ต้องลงแรง
+- **Enterprise-Grade Security:** ยกระดับความมั่นใจ ด้วยการยืนยันตัวตนผ่าน Google Authentication แบบไร้รอยต่อ และฐานข้อมูลในสภาพแวดล้อมที่ปลอดภัยสูงสุด
+- **Sustainable Architecture:** ขับเคลื่อนด้วยขุมพลัง Serverless ลดการสูบใช้พลังงานทรัพยากรโลก ผสานเป็นแนวคิด Green Tech ในทุกแกนของระบบ
 
-First, run the development server:
+## 🛠️ สถาปัตยกรรมล้ำสมัย (Tech Stack 2026)
+
+- **Core Framework:** Next.js 16.1+ (App Router, Turbopack เร็วเต็มสูบ)
+- **Language & Rules:** TypeScript 5+ เพื่อรหัสที่สะอาดและปลอดภัยที่สุด (Clean & Safe)
+- **UI & UX:** Tailwind CSS 4 มอบประสบการณ์ Premium Dark Mode ควบคู่สมูทแอนิเมชันระดับแนวหน้า
+- **Database & ORM:** Neon Serverless PostgreSQL + Drizzle ORM
+- **Auth & Secure:** Auth.js (NextAuth) x Google Cloud Platform (OAuth2)
+
+## 🚀 เริ่มต้นสัมผัสอนาคต (Getting Started)
+
+พร้อมที่จะก้าวข้ามขีดจำกัดเดิมๆ หรือยัง? มาร่วมสร้างอนาคตร่วมกันเลย:
 
 ```bash
+# 1. ติดตั้งขุมพลัง
+npm install
+
+# 2. เริ่มต้นระบบขับเคลื่อนอนาคต (Development Mode)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+เปิด [http://localhost:3000](http://localhost:3000) บนบราว์เซอร์ของคุณ เพื่อคว้าอิสรภาพทางการเงิน และร่วมออกแบบโลกแห่งนวัตกรรมสีเขียวรอบตัวคุณ 🌿
