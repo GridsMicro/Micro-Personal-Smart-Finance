@@ -74,7 +74,8 @@ export const verificationTokens = pgTable(
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   userId: text("user_id").references(() => users.id),
-  broker: text("broker").notNull().default("BINANCE_TH"), // BINANCE_TH, BITKUB, OKX
+  portfolioId: integer("portfolio_id").references(() => portfolios.id, { onDelete: "cascade" }),
+  broker: text("broker").notNull().default("BINANCE_TH"), // [LEGACY] Keep for backward compatibility
   asset: text("asset").notNull(),
   amount: decimal("amount", { precision: 20, scale: 8 }).notNull(),
   price: decimal("price", { precision: 20, scale: 8 }), // Optional entry price
@@ -105,4 +106,21 @@ export const dailySnapshots = pgTable("daily_snapshots", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   unq: unique().on(table.userId, table.date),
+}));
+
+// --- Portfolio Entity Table ---
+// Level 2: Portfolio as real entity with transactions linked to it
+export const portfolios = pgTable("portfolios", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // User-defined name like "My BTC Holdings"
+  description: text("description"), // Optional description
+  exchangeType: text("exchange_type").default("CUSTOM"), // BINANCE_TH, BITKUB, OKX, CUSTOM
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  // Each user can have multiple portfolios with unique names
+  unq: unique().on(table.userId, table.name),
 }));

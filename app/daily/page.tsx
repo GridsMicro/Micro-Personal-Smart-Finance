@@ -10,7 +10,7 @@ import {
   saveTransaction
 } from "../actions/transactionActions";
 import { SUPPORTED_ASSETS, IconWithFallback } from "../dashboard/page";
-import Navbar from "../../components/Navbar";
+import Navbar from "../components/Navbar";
 
 const EXCHANGES = [
   { id: "BINANCE_TH", label: "Binance TH", icon: "/coins/BINANCE-EX.png" },
