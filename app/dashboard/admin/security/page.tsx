@@ -84,7 +84,7 @@ export default function SecurityPage() {
               <div className="flex gap-2">
                 <input
                   type={showSecret ? "text" : "password"}
-                  value="sk_live_51HYs2jK8QJ4mP2vN9xYzAbCdEfGhIjKlMnOpQrStUvWxYz123456"
+                  value="sk_live_•••••••••••••••••••••••••••••••••••••••••••••••••••••••••"
                   readOnly
                   className="flex-1 px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg font-mono text-sm"
                 />
