@@ -18,7 +18,11 @@ import {
 } from "lucide-react";
 import { AuthGuard } from "../../../lib/auth-guard";
 import { IconWithFallback } from "../../components/IconWithFallback";
-import { getPortfolioById, deleteTransaction } from "../../../actions/transactionActions";
+import { deleteTransaction, getPortfolioById } from "../../../actions/transactionActions";
+import { getPriceKey } from "../../lib/priceUtils";
+import { EXCHANGES_MAPPED } from "../../lib/constants";
+import { GlassCard } from "../../components/ui/GlassCard";
+import { NeonButton } from "../../components/ui/NeonButton";
 import Navbar from "../../../components/Navbar";
 
 // ============ TYPES ============
@@ -60,85 +64,12 @@ interface MarketData {
   binance: Record<string, number>;
   bitkub: Record<string, number>;
   okx: Record<string, number>;
+  coingecko: Record<string, number>; // [ADDED: 2026-04-06] For CUSTOM/METAMASK/LEDGER
   usdthb: number;
 }
 
-// ============ EXCHANGE MAPPING ============
-const EXCHANGES_MAPPED = [
-  { id: "BINANCE_TH", label: "Binance TH", icon: "/coins/BINANCE-EX.png", color: "#F0B90B" },
-  { id: "BITKUB", label: "Bitkub", icon: "/coins/BITKUB-EX.png", color: "#00D4AA" },
-  { id: "OKX", label: "OKX", icon: "/coins/OKX_logo.svg.png", color: "#000000" },
-  { id: "METAMASK", label: "MetaMask", icon: "/coins/METAMASK.png", color: "#E2761B" },
-  { id: "LEDGER", label: "Ledger", icon: "/coins/LEDGER.png", color: "#FFFFFF" },
-  { id: "CUSTOM", label: "Custom", icon: "/coins/CUSTOM.png", color: "#00F5FF" }
-];
-
-// Helper function (not used currently but kept for future use)
-
-// ============ GLASS CARD COMPONENT ============
-function GlassCard({ 
-  children, 
-  className = "", 
-  glow = false 
-}: { 
-  children: React.ReactNode; 
-  className?: string;
-  glow?: boolean;
-}) {
-  return (
-    <div 
-      className={`
-        relative overflow-hidden rounded-3xl
-        bg-linear-to-br from-slate-900/80 to-slate-950/60
-        backdrop-blur-xl border border-neon-cyan/15
-        shadow-glass
-        ${glow ? "neon-glow-cyan" : ""}
-        ${className}
-      `}
-    >
-      <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-neon-cyan/50 to-transparent" />
-      {children}
-    </div>
-  );
-}
-
-// ============ NEON BUTTON COMPONENT ============
-function NeonButton({ 
-  children, 
-  onClick, 
-  variant = "primary",
-  icon: Icon,
-  className = ""
-}: { 
-  children: React.ReactNode; 
-  onClick?: () => void;
-  variant?: "primary" | "secondary" | "danger";
-  icon?: React.ComponentType<{ className?: string }>;
-  className?: string;
-}) {
-  const variants = {
-    primary: "bg-neon-cyan/10 text-neon-cyan border-neon-cyan/30 hover:bg-neon-cyan/20 hover:neon-glow-cyan",
-    secondary: "bg-slate-800/50 text-slate-300 border-slate-600/30 hover:bg-slate-700/50",
-    danger: "bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20"
-  };
-  
-  return (
-    <button
-      onClick={onClick}
-      className={`
-        flex items-center gap-2 px-4 py-2 rounded-xl
-        border backdrop-blur-sm
-        transition-all duration-300
-        font-mono text-xs uppercase tracking-wider
-        ${variants[variant]}
-        ${className}
-      `}
-    >
-      {Icon && <Icon className="w-4 h-4" />}
-      {children}
-    </button>
-  );
-}
+// [STANDARD: 2026-04-06] All shared constants imported from ../../lib/constants
+// EXCHANGES_MAPPED, etc. - use centralized versions only
 
 // ============ ASSET ROW COMPONENT ============
 function AssetRow({ 
@@ -148,19 +79,12 @@ function AssetRow({
   item: PortfolioItem;
   prices: MarketData;
 }) {
-  const getPriceKey = (broker: string): keyof MarketData => {
-    const map: Record<string, keyof MarketData> = {
-      "BINANCE_TH": "binance",
-      "BITKUB": "bitkub", 
-      "OKX": "okx",
-      "METAMASK": "binance",
-      "LEDGER": "binance",
-      "CUSTOM": "binance"
-    };
-    return map[broker] || "binance";
+  const getPriceKeyLocal = (broker: string): keyof MarketData => {
+    // [STANDARD: 2026-04-06] Using centralized getPriceKey from priceUtils.ts
+    return getPriceKey(broker) as keyof MarketData;
   };
 
-  const price = (prices[getPriceKey(item.broker)] as Record<string, number>)?.[item.asset] ?? 0;
+  const price = (prices[getPriceKeyLocal(item.broker)] as Record<string, number>)?.[item.asset] ?? 0;
   const currentValue = item.amount * price;
   const pnl = price > 0 && item.avgPrice 
     ? ((price - item.avgPrice) / item.avgPrice) * 100 
@@ -231,7 +155,13 @@ export default function PortfolioDetailPage({
   
   const [loading, setLoading] = useState(true);
   const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null);
-  const [prices, setPrices] = useState<MarketData>({ binance: {}, bitkub: {}, okx: {}, usdthb: 35 });
+  const [prices, setPrices] = useState<MarketData>({ 
+    binance: {}, 
+    bitkub: {}, 
+    okx: {}, 
+    coingecko: {}, // [ADDED: 2026-04-06]
+    usdthb: 35 
+  });
   const [error, setError] = useState<string | null>(null);
 
   // Fetch market prices
@@ -245,6 +175,7 @@ export default function PortfolioDetailPage({
             binance: data.binance || {},
             bitkub: data.bitkub || {},
             okx: data.okx || {},
+            coingecko: data.coingecko || {}, // [ADDED: 2026-04-06]
             usdthb: data.usdthb || 35
           });
         }
@@ -334,18 +265,8 @@ export default function PortfolioDetailPage({
 
   // Calculate total portfolio value
   const totalPortfolioValue = portfolioItems.reduce((sum, item) => {
-    const getPriceKey = (broker: string): keyof MarketData => {
-      const map: Record<string, keyof MarketData> = {
-        "BINANCE_TH": "binance",
-        "BITKUB": "bitkub", 
-        "OKX": "okx",
-        "METAMASK": "binance",
-        "LEDGER": "binance",
-        "CUSTOM": "binance"
-      };
-      return map[broker] || "binance";
-    };
-    const price = (prices[getPriceKey(item.broker)] as Record<string, number>)?.[item.asset] ?? 0;
+    const priceKeyLocal = getPriceKey(item.broker) as keyof MarketData;
+    const price = (prices[priceKeyLocal] as Record<string, number>)?.[item.asset] ?? 0;
     return sum + (item.amount * price);
   }, 0);
 

@@ -34,6 +34,10 @@ import {
 import { getLatestTransactions } from "../../actions/testActions";
 import { getActiveAssets } from "../../actions/marketActions";
 import { AssetModal } from "./modals/AssetModal";
+import { SUPPORTED_ASSETS, EXCHANGES_MAPPED, NEON_COLORS } from "../lib/constants";
+import { getPriceKey } from "../lib/priceUtils";
+import { GlassCard } from "../components/ui/GlassCard";
+import { NeonButton } from "../components/ui/NeonButton";
 
 // ============ TYPES ============
 interface Transaction {
@@ -47,6 +51,7 @@ interface Transaction {
   note?: string | null;
   date: string;
   createdAt?: Date | null;
+  portfolioId?: number | null;
 }
 
 interface DailySnapshot {
@@ -169,114 +174,8 @@ const deletePortfolioFromDB = async (portfolioId: number): Promise<boolean> => {
   }
 };
 
-// ============ SUPPORTED ASSETS ============
-export const SUPPORTED_ASSETS = [
-  "THB", "USDT", "USDC", "BTC", "ETH", "BNB", "SOL", "AVAX", 
-  "ADA", "DOT", "DOGE", "XRP", "NEAR", "ORDI", "MOODENG", 
-  "GOAT", "AVEX", "SATS", "LINK", "MATIC", "UNI", "AAVE",
-  "SUSHI", "COMP", "MKR", "YFI", "SNX", "CRV", "BAL",
-  "1INCH", "DYDX", "GRT", "LDO", "RPL", "FXS", "CVX"
-];
-
-// [STANDARD: 2026-04-05] Price Fetching Strategy based on Exchange/Wallet Type
-// - BINANCE_TH: Use Binance TH API prices (THB pairs)
-// - BITKUB: Use Bitkub API prices (THB pairs)
-// - CUSTOM, METAMASK, LEDGER: Use CoinGecko global price (THB)
-const PRICE_SOURCE_MAP: Record<string, keyof MarketData> = {
-  "BINANCE_TH": "binance",
-  "BITKUB": "bitkub",
-  "OKX": "okx",
-  // [UPDATED: 2026-04-05] Wallet/Custom types use CoinGecko global price
-  "CUSTOM": "coingecko",
-  "METAMASK": "coingecko",
-  "LEDGER": "coingecko",
-};
-
-// Helper to get price lookup key from exchange_type
-const getPriceKey = (exchangeType: string): keyof MarketData => {
-  // Return mapped price source or default to binance
-  return PRICE_SOURCE_MAP[exchangeType] || "binance";
-};
-
-const EXCHANGES_MAPPED = [
-  { id: "BINANCE_TH", label: "Binance TH", icon: "/coins/BINANCE-EX.png", color: "#F0B90B" },
-  { id: "BITKUB", label: "Bitkub", icon: "/coins/BITKUB-EX.png", color: "#00D4AA" },
-  { id: "OKX", label: "OKX", icon: "/coins/OKX_logo.svg.png", color: "#000000" },
-  { id: "METAMASK", label: "MetaMask", icon: "/coins/METAMASK.png", color: "#E2761B" },
-  { id: "LEDGER", label: "Ledger", icon: "/coins/LEDGER.png", color: "#FFFFFF" },
-  { id: "CUSTOM", label: "Custom", icon: "/coins/CUSTOM.png", color: "#00F5FF" }
-];
-
-const NEON_COLORS = ["#00F5FF", "#FF00FF", "#BF00FF", "#00FF9F", "#FFFF00", "#FF6600"];
-
-// ============ GLASS CARD COMPONENT ============
-function GlassCard({ 
-  children, 
-  className = "", 
-  glow = false,
-  interactive = false 
-}: { 
-  children: React.ReactNode; 
-  className?: string;
-  glow?: boolean;
-  interactive?: boolean;
-}) {
-  return (
-    <div 
-      className={`
-        relative overflow-hidden rounded-3xl
-        bg-linear-to-br from-slate-900/80 to-slate-950/60
-        backdrop-blur-xl border border-neon-cyan/15
-        shadow-glass
-        ${glow ? "neon-glow-cyan" : ""}
-        ${interactive ? "hover:border-neon-cyan/30 transition-all duration-300 hover:neon-glow-cyan" : ""}
-        ${className}
-      `}
-    >
-      {/* Inner highlight */}
-      <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-neon-cyan/50 to-transparent" />
-      {children}
-    </div>
-  );
-}
-
-// ============ NEON BUTTON COMPONENT ============
-function NeonButton({ 
-  children, 
-  onClick, 
-  variant = "primary",
-  icon: Icon,
-  className = ""
-}: { 
-  children: React.ReactNode; 
-  onClick?: () => void;
-  variant?: "primary" | "secondary" | "danger";
-  icon?: React.ComponentType<{ className?: string }>;
-  className?: string;
-}) {
-  const variants = {
-    primary: "bg-neon-cyan/10 text-neon-cyan border-neon-cyan/30 hover:bg-neon-cyan/20 hover:neon-glow-cyan",
-    secondary: "bg-slate-800/50 text-slate-300 border-slate-600/30 hover:bg-slate-700/50",
-    danger: "bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20"
-  };
-  
-  return (
-    <button
-      onClick={onClick}
-      className={`
-        flex items-center gap-2 px-4 py-2 rounded-xl
-        border backdrop-blur-sm
-        transition-all duration-300
-        font-mono text-xs uppercase tracking-wider
-        ${variants[variant]}
-        ${className}
-      `}
-    >
-      {Icon && <Icon className="w-4 h-4" />}
-      {children}
-    </button>
-  );
-}
+// [STANDARD: 2026-04-06] All shared constants imported from ../lib/constants
+// EXCHANGES_MAPPED, NEON_COLORS, etc. - use centralized versions only
 
 // ============ PORTFOLIO CARD COMPONENT ============
 function PortfolioCard({ 
@@ -380,18 +279,17 @@ function AssetRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  // [STANDARD: 2026-04-05] Price fetching based on exchange_type
-  // See PRICE_SOURCE_MAP in constants above for mapping logic
-  const marketPrice = (prices[getPriceKey(item.broker)] as Record<string, number>)?.[item.asset] ?? 0;
+  // [STANDARD: 2026-04-06] Price fetching using centralized getPriceKey from priceUtils.ts
+  const priceKey = getPriceKey(item.broker);
+  const priceSource = prices[priceKey] as Record<string, number>;
+  const marketPrice = priceSource?.[item.asset] ?? 0;
   const currentValue = item.amount * marketPrice;
   const pnl = marketPrice > 0 && item.avgPrice 
     ? ((marketPrice - item.avgPrice) / item.avgPrice) * 100 
     : 0;
   
   // [DEBUG]: Check market price vs avgPrice for P&L calculation
-  if (item.asset === "BTC") {
-    console.log(`[P&L DEBUG] BTC: marketPrice=${marketPrice}, avgPrice=${item.avgPrice}, pnl=${pnl.toFixed(2)}%`);
-  }
+  console.log(`[P&L DEBUG] ${item.asset}: broker=${item.broker}, priceKey=${priceKey}, marketPrice=${marketPrice}, avgPrice=${item.avgPrice}, priceSourceKeys=${Object.keys(priceSource || {})}`);
   
   return (
     <div 
@@ -1067,9 +965,14 @@ export default function CyberpunkDashboard() {
         const shouldSave = Math.abs(diff) > 0.000001 || (data.avgPrice !== undefined);
         
         if (shouldSave) {
+          // Find portfolio dbId for Level 2 architecture
+          const portfolio = portfolios.find(p => p.id === data.broker);
+          const portfolioDbId = portfolio?.dbId;
+          
           // Create adjustment transaction
           await saveTransaction({
             broker: data.broker!,
+            portfolioId: portfolioDbId,
             asset: data.asset!,
             amount: Math.abs(diff) > 0.000001 ? Math.abs(diff).toString() : "0",
             price: data.avgPrice?.toString(),
@@ -1079,9 +982,14 @@ export default function CyberpunkDashboard() {
           });
         }
       } else {
+        // Find portfolio dbId for Level 2 architecture
+        const portfolio = portfolios.find(p => p.id === data.broker);
+        const portfolioDbId = portfolio?.dbId;
+        
         // [EDITED]: Include price (avgPrice) in transaction
         await saveTransaction({
           broker: data.broker!,
+          portfolioId: portfolioDbId,
           asset: data.asset!,
           amount: data.amount!.toString(),
           price: data.avgPrice?.toString(),
@@ -1109,22 +1017,39 @@ export default function CyberpunkDashboard() {
     }
   };
   
-  // Handle delete asset
+  // Handle delete asset - ACTUALLY DELETE from database
   const handleDeleteAsset = async (asset: PortfolioItem) => {
     try {
       console.log(`[DELETE ASSET] Starting deletion: ${asset.asset} from ${asset.broker}, amount: ${asset.amount}`);
       
-      // Create a withdraw transaction to zero it out
-      const result = await saveTransaction({
-        broker: asset.broker,
-        asset: asset.asset,
-        amount: asset.amount.toString(),
-        type: "WITHDRAW",
-        date: new Date().toISOString().split('T')[0]
-      });
+      // Find the portfolio dbId
+      const portfolio = portfolios.find(p => p.id === asset.broker);
+      const portfolioDbId = portfolio?.dbId;
       
-      console.log(`[DELETE ASSET] Success: Created WITHDRAW transaction`, result);
+      // Get all transactions for this asset - ONLY for this specific portfolio
+      // [FIXED: 2026-04-06] Match by portfolioId only to avoid deleting from other portfolios with same broker
+      const assetTransactions = transactions.filter(
+        tx => tx.asset === asset.asset && 
+              portfolioDbId && tx.portfolioId === portfolioDbId
+      );
       
+      // Fallback: if no portfolioId match found, try broker (legacy mode)
+      // But warn if multiple portfolios have same broker
+      if (assetTransactions.length === 0 && !portfolioDbId) {
+        console.warn(`[DELETE ASSET] No portfolioId for ${asset.asset}, falling back to broker match (may affect multiple portfolios)`);
+      }
+      
+      console.log(`[DELETE ASSET] Found ${assetTransactions.length} transactions to delete`);
+      
+      // Delete each transaction
+      for (const tx of assetTransactions) {
+        await deleteTransaction(tx.id);
+        console.log(`[DELETE ASSET] Deleted transaction ${tx.id}`);
+      }
+      
+      console.log(`[DELETE ASSET] Successfully deleted all transactions for ${asset.asset}`);
+      
+      // Refresh data
       const txData = await getTransactions();
       setTransactions(txData);
       console.log(`[DELETE ASSET] Refreshed transactions: ${txData.length} total`);

@@ -21,6 +21,7 @@
 9. [UI/UX Standards](#9-uiux-standards)
 10. [Environment Variables](#10-environment-variables)
 11. [ขั้นตอนการพัฒนา](#11-ขั้นตอนการพัฒนา)
+14. [File Organization Standards](#14-file-organization-standards-new)
 
 ---
 
@@ -53,7 +54,7 @@
 
 ---
 
-## 2. โครงสร้างโฟลเดอร์
+## 2. โครงสร้างโฟลเดอร์ (Updated 2026-04-06)
 
 ```
 Micro-Personal-Smart-Finance/
@@ -68,18 +69,31 @@ Micro-Personal-Smart-Finance/
 │   │   ├── cron/               # Cron jobs (BTC price, Daily snapshot)
 │   │   └── ticker/             # ราคาเหรียญรวม
 │   ├── components/         # React Components ที่ใช้ร่วม
+│   │   ├── providers/        # Context providers, AuthGuard
+│   │   └── ui/               # UI components (GlassCard, NeonButton)
 │   ├── dashboard/          # หน้า Dashboard หลัก
-│   ├── daily/              # หน้าจัดการรายวัน
+│   │   ├── components/       # Dashboard-specific components
+│   │   ├── lib/              # Dashboard utils (constants, priceUtils)
+│   │   └── portfolio/        # Portfolio detail pages
 │   ├── db/                 # Database config + Schema
 │   │   ├── index.ts            # Database connection
-│   │   └── schema.ts           # Table definitions (Drizzle)
-│   ├── login/              # หน้า Login
+│   │   ├── schema.ts           # Table definitions (Drizzle)
+│   │   └── migrations/         # SQL migrations
+│   ├── lib/                # Shared utilities
+│   │   ├── auth-proxy.ts       # Auth proxy (replaces middleware)
+│   │   └── utils/              # Utility functions, hooks
+│   │       └── hooks/          # Custom hooks (use-toast, etc.)
+│   ├── login/              # หน้า Login (moved from app/lib/login/)
 │   ├── market/             # หน้าข้อมูลตลาด
+│   ├── tools/              # [NEW] Utility/testing pages
+│   │   ├── api-test/         # API testing page
+│   │   ├── binance-terminal/   # Binance terminal page
+│   │   └── market-data/        # Market data tools
 │   ├── globals.css         # Global styles
 │   ├── layout.tsx          # Root layout
 │   ├── page.tsx            # Landing page
 │   └── providers.tsx       # Context providers
-├── components/             # (legacy) Components นอก app/
+├── components/             # (legacy) Components นอก app/ - DEPRECATED
 ├── public/                 # Static assets
 │   └── coins/              # โลโก้เหรียญ (SVG, PNG, WEBP)
 ├── scripts/                # Utility scripts (ts-node)
@@ -89,15 +103,28 @@ Micro-Personal-Smart-Finance/
 ├── types/                  # TypeScript type definitions
 │   └── next-auth.d.ts      # Type extensions สำหรับ NextAuth
 ├── CORE.md                 # <-- ไฟล์นี้ (กติกากลาง)
+├── DATABASE_STANDARD.md    # Database standards
 ├── ARCHITECTURE.md         # Architecture docs (Auth focused)
 ├── README.md               # Project overview
-├── middleware.ts           # NextAuth middleware
 ├── drizzle.config.ts         # Drizzle ORM config
 ├── next.config.ts          # Next.js config
 ├── package.json
 ├── tsconfig.json
 └── vercel.json             # Vercel deployment config
 ```
+
+### สรุปการเปลี่ยนแปลงโครงสร้าง (2026-04-06)
+
+| ก่อน | หลัง | สถานะ |
+|------|------|--------|
+| `app/lib/login/page.tsx` | `app/login/page.tsx` | ย้าย |
+| `app/lib/auth-guard.tsx` | `app/components/providers/auth-guard.tsx` | ย้าย |
+| `app/hooks/use-toast.ts` | `app/lib/utils/hooks/use-toast.ts` | ย้าย |
+| `app/api-test/page.tsx` | `app/tools/api-test/page.tsx` | ย้าย |
+| `app/binance-terminal/page.tsx` | `app/tools/binance-terminal/page.tsx` | ย้าย |
+| `app/market/page.tsx` | `app/tools/market-data/page.tsx` | ย้าย |
+| `app/daily/` | ❌ ลบ | ลบทิ้ง |
+| `middleware.ts` | ❌ ลบ | ใช้ auth-proxy แทน |
 
 ---
 
@@ -350,6 +377,44 @@ psql $DATABASE_URL -f app/db/migrations/0003_standardize_portfolio_schema.sql
 [Calculate Holdings] → Group by portfolio_id
 ```
 
+#### Portfolio Detail Page:
+
+**File:** `app/dashboard/portfolio/[id]/page.tsx`
+
+**Data Source:** 
+- **Asset List:** ดึงจาก `transactions` table ที่มี `portfolio_id` เท่ากับ portfolio ปัจจุบัน
+- **Query Function:** `getPortfolioById(portfolioId)` ใน `app/actions/transactionActions.ts`
+
+**Query Logic:**
+```typescript
+// Get transactions for this portfolio
+const portfolioTransactions = await db
+  .select()
+  .from(transactions)
+  .where(
+    and(
+      eq(transactions.userId, auth.userId!),
+      eq(transactions.portfolioId, portfolioId)  // ← สำคัญ!
+    )
+  );
+```
+
+**⚠️ สำคัญ:** เมื่อบันทึก transaction ใหม่ต้องส่ง `portfolioId` เข้าไปด้วย:
+```typescript
+await saveTransaction({
+  broker: data.broker!,
+  portfolioId: portfolioDbId,  // ← ต้องมี!
+  asset: data.asset!,
+  amount: data.amount!.toString(),
+  // ...
+});
+```
+
+**สาเหตุที่แสดง "No assets found":**
+1. Transactions เก่าไม่มี `portfolio_id` (schema เก่าใช้ `broker` อย่างเดียว)
+2. หน้า Portfolio Detail query ด้วย `portfolioId` ทำให้ไม่เจอข้อมูล
+3. **แก้ไข:** ต้องบันทึก transaction ใหม่พร้อม `portfolioId` (แก้แล้วใน `CyberpunkDashboard.tsx`)
+
 ### 5.4 Common Schema Issues & Resolutions
 
 | ปัญหา | สาเหตุ | แก้ไข |
@@ -368,13 +433,13 @@ AND column_name IN ('exchange_type', 'broker_id');
 -- ต้องมี exchange_type, ไม่มี broker_id
 ```
 
-### 5.3 การเพิ่ม/แก้ไข Schema
+### 5.5 การเพิ่ม/แก้ไข Schema
 
 1. แก้ไข `app/db/schema.ts`
 2. รัน `npx drizzle-kit push` เพื่อ apply changes
 3. อัปเดต Server Actions ที่เกี่ยวข้อง
 
-### 5.3 การ Query
+### 5.6 การ Query
 
 ```typescript
 import { db } from "../db";
@@ -469,16 +534,23 @@ revalidatePath("/daily");
 
 - `GET /api/cron/btc` - บันทึกราคา BTC อัตโนมัติ
 - `GET /api/cron/snapshot` - บันทึก snapshot พอร์ตผู้ใช้ทุกคน
+- `GET /api/cron/price-history` - บันทึกราคาเหรียญทุกวันตอน 6:00 AM สำหรับประวัติราคา
 
 Cron config อยู่ใน `vercel.json`:
 ```json
 {
   "crons": [
     { "path": "/api/cron/btc", "schedule": "0 */6 * * *" },
-    { "path": "/api/cron/snapshot", "schedule": "0 0 * * *" }
+    { "path": "/api/cron/snapshot", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/price-history", "schedule": "0 6 * * *" }
   ]
 }
 ```
+
+**Price History Tracking (6:00 AM Daily)**
+- บันทึกราคาเหรียญทุกเหรียญใน `SUPPORTED_ASSETS` ลงฐานข้อมูล
+- ใช้สำหรับวิเคราะห์แนวโน้มราคาย้อนหลัง
+- ข้อมูลเก็บในตาราง `price_history` (ถ้ามี) หรือ `market_snapshots`
 
 ---
 
@@ -550,6 +622,46 @@ useEffect(() => {
 
 ---
 
+### 9.4 Supported Assets (SUPPORTED_ASSETS Standard)
+
+**Single Source of Truth:** `app/dashboard/lib/constants.ts`
+
+**⚠️ กฎเหล็ก:** ห้ามกำหนด `SUPPORTED_ASSETS` ซ้ำซ้อนในหลายไฟล์
+
+**วิธีใช้งาน:**
+```typescript
+// ✅ ถูกต้อง - import จาก constants.ts
+import { SUPPORTED_ASSETS } from "../lib/constants";
+// หรือ
+import { SUPPORTED_ASSETS } from "./lib/constants";
+
+// ใช้งาน
+const assetsList = SUPPORTED_ASSETS;
+```
+
+**รายการเหรียญมาตรฐาน (19 เหรียญ):**
+```typescript
+export const SUPPORTED_ASSETS = [
+  "THB", "USDT", "USDC", "BTC", "ETH", "BNB", "SOL", "AVAX",
+  "ADA", "DOT", "DOGE", "XRP", "NEAR", "ORDI", "MOODENG", "GOAT",
+  "AVEX", "SATS", "TRX"
+];
+```
+
+**❌ ห้ามทำ:**
+- ห้ามกำหนด `SUPPORTED_ASSETS` ใหม่ใน component ใดๆ
+- ห้าม export `SUPPORTED_ASSETS` จากหลายไฟล์
+- ห้ามแก้ไขรายการเหรียญโดยไม่ผ่าน `constants.ts`
+
+**ไฟล์ที่ใช้ SUPPORTED_ASSETS:**
+- `AssetModal.tsx` - import จาก `../lib/constants`
+- `CyberpunkDashboard.tsx` - import จาก `../lib/constants`
+- `DashboardContent.tsx` - import จาก `../lib/constants`
+- `page.tsx` - import จาก `./lib/constants` แล้ว re-export
+- `daily/page.tsx` - import จาก `../dashboard/page`
+
+---
+
 ## 10. Environment Variables
 
 ### 10.1 Required (Production)
@@ -616,6 +728,73 @@ npm run dev
 
 ---
 
+## 14. File Organization Standards (New)
+
+### 14.1 หลักการจัดระเบียบไฟล์
+
+**เป้าหมาย:** โครงสร้างไฟล์ที่เป็นระบบ หาไฟล์เจอง่าย ไม่ซ้ำซ้อน
+
+```
+app/
+├── actions/           # Server Actions เท่านั้น
+├── api/               # API Routes
+├── components/        # Shared components
+│   ├── providers/     # Auth guards, context providers
+│   └── ui/            # Reusable UI components
+├── dashboard/         # Dashboard feature
+│   ├── components/    # Dashboard-specific
+│   ├── lib/           # Dashboard utils
+│   └── portfolio/     # Portfolio pages
+├── db/                # Database config
+├── lib/               # Shared utilities
+│   └── utils/         # Helper functions
+│       └── hooks/     # Custom hooks
+├── login/             # Login page
+├── market/            # Market feature
+└── tools/             # [NEW] Utility/testing pages
+```
+
+### 14.2 กฎการย้ายไฟล์
+
+| ประเภท | ตำแหน่ง | ตัวอย่าง |
+|--------|---------|----------|
+| **Pages หลัก** | `app/[feature]/` | `app/login/`, `app/dashboard/` |
+| **Testing tools** | `app/tools/[name]/` | `app/tools/api-test/` |
+| **Shared components** | `app/components/` | `app/components/providers/` |
+| **Hooks** | `app/lib/utils/hooks/` | `app/lib/utils/hooks/use-toast.ts` |
+| **Auth guards** | `app/components/providers/` | `app/components/providers/auth-guard.tsx` |
+
+### 14.3 ไฟล์ที่ต้องลบ/ย้าย (Cleanup)
+
+| ไฟล์/โฟลเดอร์ | การกระทำ | เหตุผล |
+|--------------|----------|--------|
+| `app/daily/` | ❌ ลบ | ไม่ใช้แล้ว |
+| `middleware.ts` | ❌ ลบ | ใช้ auth-proxy แทน |
+| `app/lib/login/page.tsx` | 🔄 ย้าย → `app/login/page.tsx` | ไม่ควรซ้อน lib |
+| `app/lib/auth-guard.tsx` | 🔄 ย้าย → `app/components/providers/` | เป็นส่วนของ UI |
+| `app/hooks/use-toast.ts` | 🔄 ย้าย → `app/lib/utils/hooks/` | จัดระเบียบ hooks |
+| `app/api-test/page.tsx` | 🔄 ย้าย → `app/tools/api-test/page.tsx` | เป็น testing tool |
+| `app/binance-terminal/page.tsx` | 🔄 ย้าย → `app/tools/binance-terminal/page.tsx` | เป็น testing tool |
+| `app/market/page.tsx` | 🔄 ย้าย → `app/tools/market-data/page.tsx` | เป็น testing tool |
+
+### 14.4 Component Size Standards
+
+**หลักการ:** ไฟล์ .tsx ควรมีขนาดไม่เกิน 500 บรรทัด
+
+| ขนาด | การกระทำ |
+|------|----------|
+| < 300 บรรทัด | ✅ OK - Single component |
+| 300-500 บรรทัด | ⚠️ Monitor - Consider splitting |
+| > 500 บรรทัด | 🔴 Refactor - Must split |
+
+**ตัวอย่างการแยก:** `CyberpunkDashboard.tsx` (59KB) →
+- `PortfolioCard.tsx`
+- `AssetRow.tsx`
+- `AssetDetailView.tsx`
+- `PortfolioModal.tsx`
+
+---
+
 ## 🚨 Checklist สำหรับ AI Agents
 
 ก่อนส่ง Pull Request หรือ commit การเปลี่ยนแปลง:
@@ -644,6 +823,7 @@ npm run dev
 
 | เวอร์ชัน | วันที่ | รายละเอียด |
 |---------|-------|-----------|
+| 1.2.0 | 2026-04-06 | **File Organization Standards** - Section 14, ย้ายไฟล์ไปตำแหน่งที่ถูกต้อง, ลบ daily/, แก้ไขเลขหัวข้อซ้ำ |
 | 1.1.0 | 2026-04-05 | **Level 2 Portfolio Architecture** - Portfolio เป็น entity จริง, เพิ่ม `portfolio_id` ใน transactions, แก้ไข API endpoints |
 | 1.0.0 | 2026-04-04 | สร้างกติกากลางครั้งแรก |
 
@@ -699,6 +879,18 @@ npm run dev
 | File | Reason |
 |------|--------|
 | `middleware.ts` | เปลี่ยนใช้ auth-proxy pattern |
+| `app/daily/` | ไม่ใช้แล้ว |
+
+#### 🔄 Files to MOVE (File Organization 2026-04-06)
+
+| ก่อน | หลัง | สถานะ |
+|------|------|--------|
+| `app/lib/login/page.tsx` | `app/login/page.tsx` | 🔄 ย้าย |
+| `app/lib/auth-guard.tsx` | `app/components/providers/auth-guard.tsx` | 🔄 ย้าย |
+| `app/hooks/use-toast.ts` | `app/lib/utils/hooks/use-toast.ts` | 🔄 ย้าย |
+| `app/api-test/page.tsx` | `app/tools/api-test/page.tsx` | 🔄 ย้าย |
+| `app/binance-terminal/page.tsx` | `app/tools/binance-terminal/page.tsx` | 🔄 ย้าย |
+| `app/market/page.tsx` | `app/tools/market-data/page.tsx` | 🔄 ย้าย |
 
 ### 🔐 AUTHENTICATION ARCHITECTURE (NEW)
 
@@ -930,69 +1122,86 @@ CREATE TABLE api_monitoring (
 
 ---
 
-## 12. Price Fetching Standards (2026-04-05)
+## 12. Price Fetching Standards (2026-04-06)
 
 ### 12.1 Overview
 การคำนวณ P&L และมูลค่าพอร์ต ต้องใช้ราคาตลาดปัจจุบันที่เหมาะสมกับประเภทของ Exchange/Wallet
 
-### 12.2 Price Source Mapping
+**⚠️ กฎเหล็ก:** ห้ามกำหนด `getPriceKey` หรือ `PRICE_SOURCE_MAP` ซ้ำในหลายไฟล์ ให้ import จาก `priceUtils.ts` เท่านั้น
 
-| exchange_type | Price Source | API Endpoint | Fallback |
-|---------------|--------------|--------------|----------|
-| **BINANCE_TH** | Binance TH | `/api/ticker` → `binance` | Bitkub |
-| **BITKUB** | Bitkub | `/api/ticker` → `bitkub` | Binance TH |
-| **OKX** | OKX | `/api/ticker` → `okx` | Binance TH |
-| **METAMASK** | **CoinGecko** | `/api/ticker` → `coingecko` | Binance TH |
-| **LEDGER** | **CoinGecko** | `/api/ticker` → `coingecko` | Binance TH |
-| **CUSTOM** | **CoinGecko** | `/api/ticker` → `coingecko` | Binance TH |
+### 12.2 Price Source Mapping (Centralized)
 
-### 12.3 Implementation
+**ไฟล์มาตรฐาน:** `app/dashboard/lib/priceUtils.ts`
+
+| exchange_type | Price Source | API Endpoint | เหตุผล |
+|---------------|--------------|--------------|--------|
+| **BINANCE_TH** | **Bitkub** | `/api/ticker` → `bitkub` | Binance TH API มัก return empty |
+| **BITKUB** | Bitkub | `/api/ticker` → `bitkub` | Primary source |
+| **OKX** | OKX | `/api/ticker` → `okx` | Primary source |
+| **METAMASK** | **CoinGecko** | `/api/ticker` → `coingecko` | Global average price |
+| **LEDGER** | **CoinGecko** | `/api/ticker` → `coingecko` | Global average price |
+| **CUSTOM** | **CoinGecko** | `/api/ticker` → `coingecko` | Global average price |
+
+### 12.3 Implementation (ใช้ priceUtils.ts)
 
 ```typescript
-// app/dashboard/components/CyberpunkDashboard.tsx
-// [STANDARD: 2026-04-05] Price Fetching Strategy based on Exchange/Wallet Type
+// ✅ ถูกต้อง - import จาก priceUtils.ts
+import { 
+  getPriceKey, 
+  getAssetPrice, 
+  calculatePnL, 
+  calculateValue,
+  PRICE_SOURCE_MAP 
+} from "../lib/priceUtils";
 
-const PRICE_SOURCE_MAP: Record<string, keyof MarketData> = {
-  "BINANCE_TH": "binance",
-  "BITKUB": "bitkub",
-  "OKX": "okx",
-  // Custom/Wallets use global average (binance as proxy)
-  "CUSTOM": "binance",
-  "METAMASK": "binance",
-  "LEDGER": "binance",
-};
+// Usage - ดึงราคา
+const marketPrice = getAssetPrice(prices, item.broker, item.asset);
 
-// Helper to get price lookup key from exchange_type
-const getPriceKey = (exchangeType: string): keyof MarketData => {
-  return PRICE_SOURCE_MAP[exchangeType] || "binance";
-};
+// Usage - คำนวณ P&L
+const pnl = calculatePnL(marketPrice, item.avgPrice);
 
-// Usage in AssetRow/P&L calculation
-const marketPrice = (prices[getPriceKey(item.broker)] as Record<string, number>)?.[item.asset] ?? 0;
+// Usage - คำนวณ Value
+const currentValue = calculateValue(item.amount, marketPrice);
 ```
 
-### 12.4 P&L Calculation Formula
+### 12.4 ❌ ห้ามทำ
+
+```typescript
+// ห้ามกำหนดเองใน component
+const PRICE_SOURCE_MAP = { ... }; // ❌ ห้าม!
+
+const getPriceKey = (broker: string) => { ... }; // ❌ ห้าม!
+
+// ห้ามใช้โดยตรงแบบนี้
+const price = prices[broker]?.[asset]; // ❌ ไม่เป็นมาตรฐาน
+```
+
+### 12.5 P&L Calculation Formula
 
 ```typescript
 // P&L (%) = ((ราคาตลาด - ราคาซื้อ) / ราคาซื้อ) × 100
-const pnl = marketPrice > 0 && avgPrice 
-  ? ((marketPrice - avgPrice) / avgPrice) * 100 
-  : 0;
+const pnl = calculatePnL(marketPrice, avgPrice); // ใช้จาก priceUtils.ts
 
 // Value = จำนวน × ราคาตลาด
-const currentValue = amount * marketPrice;
+const currentValue = calculateValue(amount, marketPrice);
 ```
 
-### 12.5 Display Standards
+### 12.6 Files Using Price Utils
+
+- `CyberpunkDashboard.tsx` → import from `../lib/priceUtils`
+- `portfolio/[id]/page.tsx` → import from `../../lib/priceUtils`
+- ไฟล์อื่นๆ ที่ต้องใช้ราคา → import จาก `priceUtils.ts`
+
+### 12.7 Display Standards
 
 | Column | ค่าที่แสดง | คำนวณจาก |
 |--------|-----------|----------|
 | **Price** | Average Buy Price | `tx.price` จาก database |
-| **M: ฿XXX** | Market Price (small) | `prices[getPriceKey(exchange_type)]` |
-| **P&L** | กำไร/ขาดทุน % | `(market - buy) / buy × 100` |
-| **Value** | มูลค่าปัจจุบัน | `amount × market_price` |
+| **M: ฿XXX** | Market Price (small) | `getAssetPrice(prices, broker, asset)` |
+| **P&L** | กำไร/ขาดทุน % | `calculatePnL(market, buy)` |
+| **Value** | มูลค่าปัจจุบัน | `calculateValue(amount, market)` |
 
-### 12.5 Currency Toggle (THB/USD)
+### 12.8 Currency Toggle (THB/USD)
 
 **Feature:** ผู้ใช้สามารถเลือกสกุลเงินสำหรับกรอกราคาซื้อได้
 
@@ -1045,6 +1254,57 @@ exchangeRate: currency === "USD" ? parseFloat(exchangeRate) : undefined
    - ระบุว่าราคามาจากแหล่งไหน
    - แสดง timestamp ของราคา
    - Warning ถ้าราคาเก่า > 5 นาที
+
+---
+
+## 13. UI Components & Constants Standards (2026-04-06)
+
+### 13.1 Overview
+การใช้ UI Components และ Constants ต้อง import จาก centralized sources เท่านั้น เพื่อความ consistent ทั่วแอพ
+
+**⚠️ กฎเหล็ก:** ห้ามกำหนด `EXCHANGES_MAPPED`, `NEON_COLORS`, `GlassCard`, `NeonButton` ซ้ำในหลายไฟล์
+
+### 13.2 Constants (app/dashboard/lib/constants.ts)
+
+**Export ที่ใช้:**
+- `SUPPORTED_ASSETS` - รายการเหรียญที่รองรับ
+- `EXCHANGES_MAPPED` - รายการ Exchange/Wallet พร้อม icon และ color
+- `NEON_COLORS` - สี neon สำหรับ UI
+- `MarketData` - Interface ข้อมูลราคา
+- `PortfolioItem` - Interface ข้อมูลพอร์ต
+
+```typescript
+// ✅ ถูกต้อง - import จาก constants.ts
+import { SUPPORTED_ASSETS, EXCHANGES_MAPPED, NEON_COLORS } from "../lib/constants";
+```
+
+### 13.3 UI Components (app/dashboard/components/ui/)
+
+**Components ที่ centralized:**
+- `GlassCard` - Card แบบ glass morphism
+- `NeonButton` - Button แบบ neon style
+
+```typescript
+// ✅ ถูกต้อง - import จาก components/ui/
+import { GlassCard } from "../components/ui/GlassCard";
+import { NeonButton } from "../components/ui/NeonButton";
+```
+
+### 13.4 ❌ ห้ามทำ
+
+```typescript
+// ห้ามกำหนดซ้ำใน component
+const EXCHANGES_MAPPED = [...]; // ❌ ห้าม!
+const NEON_COLORS = [...];      // ❌ ห้าม!
+function GlassCard(...) { ... } // ❌ ห้าม!
+function NeonButton(...) { ... } // ❌ ห้าม!
+```
+
+### 13.5 Files Using Centralized Components
+
+- `CyberpunkDashboard.tsx` → import from `../lib/constants`, `../components/ui/`
+- `portfolio/[id]/page.tsx` → import from `../../lib/constants`, `../../components/ui/`
+- `DashboardContent.tsx` → import from `../lib/constants`
 
 ---
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getMarketHistory } from "../actions/marketActions";
+import { getMarketHistory } from "../../actions/marketActions";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
@@ -42,7 +42,7 @@ const PartnerLogos = () => (
   </div>
 );
 
-export default function MarketPage() {
+export default function MarketDataPage() {
   const [selectedAsset, setSelectedAsset] = useState("BTC");
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,7 +103,7 @@ export default function MarketPage() {
               <img src="/logo.png" alt="Smart Planner Logo" className="w-10 h-10 rounded-xl shadow-[0_0_15px_rgba(0,255,255,0.5)] transition-transform duration-500 group-hover:scale-110 object-cover" />
               <div>
                  <h1 className="font-black text-lg tracking-tighter uppercase leading-none">SMART MARKET</h1>
-                 <p className="text-[9px] text-zinc-500 font-bold tracking-widest uppercase mt-0.5">PUBLIC TREND TRACKER</p>
+                 <p className="text-[9px] text-zinc-500 font-bold tracking-widest uppercase mt-0.5">PUBLIC TREND TRACKER <span className="text-neon-cyan">[tools/]</span></p>
               </div>
            </div>
 

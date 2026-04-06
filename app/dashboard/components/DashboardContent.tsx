@@ -13,15 +13,7 @@ import {
   getTransactions, 
   getDailySnapshots, 
 } from "../../actions/transactionActions";
-
-// 🎨 Asset & Icon Definitions
-export const SUPPORTED_ASSETS = ["THB", "USDT", "USDC", "BTC", "ETH", "BNB", "SOL", "AVAX", "ADA", "DOT", "DOGE", "XRP", "NEAR", "ORDI", "MOODENG", "GOAT", "AVEX", "SATS"];
-
-const EXCHANGES_MAPPED = [
-  { id: "BINANCE_TH", label: "Binance TH", icon: "/coins/BINANCE-EX.png" },
-  { id: "BITKUB", label: "Bitkub", icon: "/coins/BITKUB-EX.png" },
-  { id: "OKX", label: "OKX Global", icon: "/coins/OKX_logo.svg.png" }
-];
+import { SUPPORTED_ASSETS, EXCHANGES_MAPPED } from "../lib/constants";
 
 interface Transaction {
   id: number;

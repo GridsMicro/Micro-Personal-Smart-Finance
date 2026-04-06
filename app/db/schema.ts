@@ -24,6 +24,9 @@ export const users = pgTable("user", {
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
   role: text("role").default("user"), // user, admin, superadmin
+  isActive: boolean("is_active").default(true), // for admin to disable/enable users
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
 });
 
 export const accounts = pgTable(

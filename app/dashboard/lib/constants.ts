@@ -1,7 +1,7 @@
 export const SUPPORTED_ASSETS = [
   "THB", "USDT", "USDC", "BTC", "ETH", "BNB", "SOL", "AVAX",
   "ADA", "DOT", "DOGE", "XRP", "NEAR", "ORDI", "MOODENG", "GOAT",
-  "AVEX", "SATS"
+  "AVEX", "SATS", "TRX"
 ];
 
 export const EXCHANGES_MAPPED = [
@@ -13,14 +13,8 @@ export const EXCHANGES_MAPPED = [
   { id: "CUSTOM", label: "Custom", icon: "/coins/CUSTOM.png", color: "#00F5FF" }
 ];
 
-export const PRICE_SOURCE_MAP: Record<string, string> = {
-  "BINANCE_TH": "binance",
-  "BITKUB": "bitkub",
-  "OKX": "okx",
-  "CUSTOM": "coingecko",
-  "METAMASK": "coingecko",
-  "LEDGER": "coingecko",
-};
+// [MOVED: 2026-04-06] PRICE_SOURCE_MAP and getPriceKey moved to priceUtils.ts
+// Use: import { getPriceKey, PRICE_SOURCE_MAP } from "./priceUtils";
 
 export const NEON_COLORS = [
   "#00F5FF", "#FF00FF", "#BF00FF", "#00FF9F", "#FFFF00", "#FF6600"
@@ -30,6 +24,7 @@ export interface MarketData {
   binance: Record<string, number>;
   bitkub: Record<string, number>;
   okx: Record<string, number>;
+  coingecko: Record<string, number>; // [ADDED: 2026-04-06]
   usdthb: number;
 }
 
@@ -68,6 +63,5 @@ export interface Transaction {
   note?: string;
 }
 
-export function getPriceKey(exchangeType: string): keyof MarketData {
-  return (PRICE_SOURCE_MAP[exchangeType] || "binance") as keyof MarketData;
-}
+// [MOVED: 2026-04-06] getPriceKey function moved to priceUtils.ts
+// Use: import { getPriceKey } from "./priceUtils";

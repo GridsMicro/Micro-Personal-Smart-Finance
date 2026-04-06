@@ -1,7 +1,8 @@
 "use client";
 
 import { Edit3, Trash2 } from "lucide-react";
-import { PortfolioItem, MarketData, getPriceKey } from "../lib/constants";
+import { PortfolioItem, MarketData } from "../lib/constants";
+import { getPriceKey } from "../lib/priceUtils";
 import { IconWithFallback } from "./IconWithFallback";
 
 interface AssetRowProps {

@@ -9,11 +9,12 @@
 
 import { AuthGuard } from "../lib/auth-guard";
 import CyberpunkDashboard from "./components/CyberpunkDashboard";
-import DashboardContent, { SUPPORTED_ASSETS } from "./components/DashboardContent";
+import DashboardContent from "./components/DashboardContent";
 import { IconWithFallback } from "./components/IconWithFallback";
+import { SUPPORTED_ASSETS } from "./lib/constants";
 
 // Re-export for other pages that need these
-export { SUPPORTED_ASSETS, IconWithFallback };
+export { IconWithFallback, SUPPORTED_ASSETS };
 
 export default function DashboardPage() {
   return (

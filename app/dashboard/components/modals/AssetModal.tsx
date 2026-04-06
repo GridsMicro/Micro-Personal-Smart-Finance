@@ -50,7 +50,7 @@ export function AssetModal({
       setCurrency(initialData?.exchangeRate ? "USD" : "THB");
       setSelectedPortfolioId(initialData?.broker || portfolioExchangeType || (portfolios && portfolios.length > 0 ? portfolios[0].id : "BINANCE_TH"));
     }
-  }, [isOpen, initialData, portfolioExchangeType, portfolios]);
+  }, [isOpen, initialData, portfolioExchangeType]);
 
   if (!isOpen) return null;
 
