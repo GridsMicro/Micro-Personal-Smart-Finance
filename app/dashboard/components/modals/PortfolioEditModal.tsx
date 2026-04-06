@@ -1,10 +1,10 @@
 "use client";
 
 import { X, Plus, Coins } from "lucide-react";
-import { GlassCard } from "./ui/GlassCard";
-import { NeonButton } from "./ui/NeonButton";
-import { Portfolio, EXCHANGES_MAPPED } from "../lib/constants";
-import { IconWithFallback } from "./IconWithFallback";
+import { GlassCard } from "../ui/GlassCard";
+import { NeonButton } from "../ui/NeonButton";
+import { Portfolio, EXCHANGES_MAPPED } from "../../lib/constants";
+import { IconWithFallback } from "../IconWithFallback";
 
 interface PortfolioEditModalProps {
   isOpen: boolean;

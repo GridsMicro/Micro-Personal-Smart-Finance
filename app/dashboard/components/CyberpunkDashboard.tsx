@@ -32,6 +32,8 @@ import {
   deleteTransaction
 } from "../../actions/transactionActions";
 import { getLatestTransactions } from "../../actions/testActions";
+import { getActiveAssets } from "../../actions/marketActions";
+import { AssetModal } from "./modals/AssetModal";
 
 // ============ TYPES ============
 interface Transaction {
@@ -461,204 +463,7 @@ function AssetRow({
   );
 }
 
-// ============ ADD/EDIT MODAL ============
-// [FIXED: 2026-04-05] Removed Exchange/Wallet selector - now passed from parent portfolio
-function AssetModal({
-  isOpen,
-  onClose,
-  onSave,
-  initialData,
-  title,
-  portfolioExchangeType, // [ADDED] Exchange type from parent portfolio
-  portfolioName // [ADDED] Portfolio name for display
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (data: Partial<PortfolioItem>) => void;
-  initialData?: PortfolioItem;
-  title: string;
-  portfolioExchangeType?: string; // [ADDED]
-  portfolioName?: string; // [ADDED]
-}) {
-  const [asset, setAsset] = useState(initialData?.asset || "BTC");
-  const [amount, setAmount] = useState(initialData?.amount.toString() || "");
-  const [avgPrice, setAvgPrice] = useState(initialData?.avgPrice?.toString() || "");
-  const [exchangeRate, setExchangeRate] = useState(initialData?.exchangeRate?.toString() || "");
-  // [ADDED: 2026-04-05] Currency toggle state
-  const [currency, setCurrency] = useState<"THB" | "USD">("THB");
-  
-  // Broker is now determined by portfolio, not selectable
-  const broker = portfolioExchangeType || initialData?.broker || "BINANCE_TH";
-  
-  // Reset state when modal opens with new initialData
-  useEffect(() => {
-    if (isOpen) {
-      setAsset(initialData?.asset || "BTC");
-      setAmount(initialData?.amount.toString() || "");
-      setAvgPrice(initialData?.avgPrice?.toString() || "");
-      setExchangeRate(initialData?.exchangeRate?.toString() || "");
-      // [ADDED: 2026-04-05] Detect currency from exchangeRate presence
-      setCurrency(initialData?.exchangeRate ? "USD" : "THB");
-    }
-  }, [isOpen, initialData]);
-  
-  if (!isOpen) return null;
-  
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <GlassCard className="w-full max-w-md p-6 animate-in fade-in zoom-in duration-300">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-neon-cyan" />
-            {title}
-          </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-slate-400" />
-          </button>
-        </div>
-        
-        <div className="space-y-4">
-          {/* Asset Select */}
-          <div>
-            <label className="text-xs text-slate-500 uppercase tracking-widest mb-2 block">Asset</label>
-            <select
-              value={asset}
-              onChange={(e) => setAsset(e.target.value)}
-              className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3
-                         text-white font-mono focus:border-neon-cyan focus:outline-none
-                         focus:neon-glow-cyan transition-all"
-            >
-              {SUPPORTED_ASSETS.map(a => (
-                <option key={a} value={a}>{a}</option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Portfolio Display - Read Only */}
-          <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-xl border border-slate-700/30">
-            <div>
-              <label className="text-xs text-slate-500 uppercase tracking-widest block">Adding to Portfolio</label>
-              <p className="font-mono text-neon-cyan font-bold">{portfolioName || broker}</p>
-            </div>
-            <div className="text-right">
-              <label className="text-xs text-slate-500 uppercase tracking-widest block">Type</label>
-              <p className="text-xs text-slate-400">{broker}</p>
-            </div>
-          </div>
-          
-          {/* Amount */}
-          <div>
-            <label className="text-xs text-slate-500 uppercase tracking-widest mb-2 block">Amount</label>
-            <input
-              type="number"
-              step="0.000001"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3
-                         text-white font-mono focus:border-neon-cyan focus:outline-none
-                         focus:neon-glow-cyan transition-all placeholder:text-slate-600"
-            />
-          </div>
-          
-          {/* Currency Toggle */}
-          <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl border border-slate-700/50">
-            <label className="text-xs text-slate-500 uppercase tracking-widest">Price Currency</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrency("THB")}
-                className={`px-3 py-1 rounded-lg text-sm font-mono transition-all ${
-                  currency === "THB"
-                    ? "bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/50"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                THB
-              </button>
-              <button
-                onClick={() => setCurrency("USD")}
-                className={`px-3 py-1 rounded-lg text-sm font-mono transition-all ${
-                  currency === "USD"
-                    ? "bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/50"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                USD
-              </button>
-            </div>
-          </div>
-          
-          {/* Avg Price - Dynamic Label */}
-          <div>
-            <label className="text-xs text-slate-500 uppercase tracking-widest mb-2 block">
-              Average Buy Price ({currency})
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={avgPrice}
-              onChange={(e) => setAvgPrice(e.target.value)}
-              placeholder="0.00"
-              className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3
-                         text-white font-mono focus:border-neon-cyan focus:outline-none
-                         focus:neon-glow-cyan transition-all placeholder:text-slate-600"
-            />
-          </div>
-          
-          {/* Exchange Rate - Only show when USD selected */}
-          {currency === "USD" && (
-            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-              <label className="text-xs text-slate-500 uppercase tracking-widest mb-2 block">
-                Exchange Rate (THB/USD) <span className="text-slate-600">- Required</span>
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={exchangeRate}
-                onChange={(e) => setExchangeRate(e.target.value)}
-                placeholder="35.50"
-                className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3
-                           text-white font-mono focus:border-neon-cyan focus:outline-none
-                           focus:neon-glow-cyan transition-all placeholder:text-slate-600"
-              />
-              <p className="text-[10px] text-slate-600 mt-1">
-                Price in THB = USD Price × Exchange Rate
-              </p>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex gap-3 mt-8">
-          <NeonButton variant="secondary" onClick={onClose} className="flex-1">
-            Cancel
-          </NeonButton>
-          <NeonButton 
-            variant="primary" 
-            onClick={() => {
-              // [FIXED: 2026-04-05] Don't call onClose here - let handleSaveAsset close modal
-              // Reason: handleSaveAsset is async and closes modal after completion
-              onSave({
-                asset,
-                broker,
-                amount: parseFloat(amount) || 0,
-                // [UPDATED: 2026-04-05] Calculate THB price based on currency selection
-                avgPrice: currency === "USD" && avgPrice && exchangeRate
-                  ? parseFloat(avgPrice) * parseFloat(exchangeRate)  // Convert USD to THB
-                  : avgPrice ? parseFloat(avgPrice) : undefined,    // Already THB
-                exchangeRate: currency === "USD" && exchangeRate
-                  ? parseFloat(exchangeRate)
-                  : undefined
-              });
-            }}
-            className="flex-1"
-          >
-            Save Asset
-          </NeonButton>
-        </div>
-      </GlassCard>
-    </div>
-  );
-}
+// ============ COMPONENT END ============
 
 // ============ PORTFOLIO MODAL ============
 function PortfolioModal({
@@ -1017,7 +822,8 @@ export default function CyberpunkDashboard() {
   const searchParams = useSearchParams();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [snapshots, setSnapshots] = useState<DailySnapshot[]>([]);
-  const [prices, setPrices] = useState<MarketData>({ binance: {}, bitkub: {}, okx: {}, usdthb: 35.0 });
+  const [prices, setPrices] = useState<MarketData>({ binance: {}, bitkub: {}, okx: {}, coingecko: {}, usdthb: 35.0 });
+  const [activeAssets, setActiveAssets] = useState<string[]>(SUPPORTED_ASSETS);
   const [loading, setLoading] = useState(true);
   
   // [EDITED]: Add portfolio names state from API
@@ -1059,6 +865,12 @@ export default function CyberpunkDashboard() {
         // [EDITED]: Load portfolio names from API
         const portfolioData = await fetchPortfolios();
         setPortfolioNames(portfolioData);
+
+        // [EDITED]: Load active assets from DB
+        const dbAssets = await getActiveAssets();
+        if (dbAssets && dbAssets.length > 0) {
+          setActiveAssets(dbAssets);
+        }
         
         // Build lookup map for quick access
         const portfolioMap: Record<string, string> = {};
@@ -1616,6 +1428,8 @@ export default function CyberpunkDashboard() {
         initialData={editingAsset || undefined}
         title={editingAsset ? "Edit Asset" : "Add New Asset"}
         portfolioExchangeType={selectedPortfolio || editingAsset?.broker}
+        portfolios={portfolios}
+        dynamicAssets={activeAssets}
         portfolioName={(() => {
           // [FIXED: 2026-04-05] Proper portfolio name lookup
           // Priority: 1) Custom portfolio name, 2) EXCHANGES_MAPPED label, 3) Broker ID
@@ -1700,10 +1514,8 @@ export default function CyberpunkDashboard() {
             setConfirmationData(null);
             
             console.log('[DEBUG] Step 6: Updating portfolio names state');
-            setPortfolioNames(prev => ({ 
-              ...prev, 
-              [confirmationData.exchangeType]: confirmationData.name 
-            }));
+            // Must keep portfolioNames as an Array, not Object
+            fetchPortfolios().then(data => setPortfolioNames(data));
             
             console.log('[DEBUG] Step 7: Going to overview tab');
             setActiveTab("overview");

@@ -10,10 +10,12 @@ interface AssetModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: Partial<PortfolioItem> & { exchangeRate?: number }) => void;
-  initialData?: Partial<PortfolioItem> | null;
+  initialData?: (Partial<PortfolioItem> & { exchangeRate?: number }) | null;
   title: string;
   portfolioExchangeType?: string;
   portfolioName?: string;
+  portfolios?: Array<any>;
+  dynamicAssets?: string[];
 }
 
 export function AssetModal({
@@ -23,15 +25,21 @@ export function AssetModal({
   initialData,
   title,
   portfolioExchangeType,
-  portfolioName
+  portfolioName,
+  portfolios,
+  dynamicAssets
 }: AssetModalProps) {
-  const [asset, setAsset] = useState(initialData?.asset || "BTC");
+  const assetsList = dynamicAssets && dynamicAssets.length > 0 ? dynamicAssets : SUPPORTED_ASSETS;
+  const [asset, setAsset] = useState(initialData?.asset || assetsList[0] || "BTC");
   const [amount, setAmount] = useState(initialData?.amount?.toString() || "");
   const [avgPrice, setAvgPrice] = useState(initialData?.avgPrice?.toString() || "");
   const [exchangeRate, setExchangeRate] = useState("");
   const [currency, setCurrency] = useState<"THB" | "USD">("THB");
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState(
+    initialData?.broker || portfolioExchangeType || (portfolios && portfolios.length > 0 ? portfolios[0].id : "BINANCE_TH")
+  );
 
-  const broker = portfolioExchangeType || initialData?.broker || "BINANCE_TH";
+  const broker = selectedPortfolioId;
 
   useEffect(() => {
     if (isOpen) {
@@ -40,8 +48,9 @@ export function AssetModal({
       setAvgPrice(initialData?.avgPrice?.toString() || "");
       setExchangeRate(initialData?.exchangeRate?.toString() || "");
       setCurrency(initialData?.exchangeRate ? "USD" : "THB");
+      setSelectedPortfolioId(initialData?.broker || portfolioExchangeType || (portfolios && portfolios.length > 0 ? portfolios[0].id : "BINANCE_TH"));
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, portfolioExchangeType, portfolios]);
 
   if (!isOpen) return null;
 
@@ -71,25 +80,48 @@ export function AssetModal({
               onChange={(e) => setAsset(e.target.value)}
               className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3
                          text-white font-mono focus:border-neon-cyan focus:outline-none
-                         focus:shadow-[0_0_15px_rgba(0,245,255,0.3)] transition-all"
+                         focus:shadow-[0_0_15px_rgba(0,245,255,0.3)] transition-all appearance-none"
             >
-              {SUPPORTED_ASSETS.map(a => (
+              {assetsList.map(a => (
                 <option key={a} value={a}>{a}</option>
               ))}
             </select>
           </div>
 
-          {/* Portfolio Display - Read Only */}
-          <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-xl border border-slate-700/30">
+          {/* Portfolio Select */}
+          {portfolios && portfolios.length > 0 ? (
             <div>
-              <label className="text-xs text-slate-500 uppercase tracking-widest block">Adding to Portfolio</label>
-              <p className="font-mono text-neon-cyan font-bold">{displayName}</p>
+              <label className="text-xs text-slate-500 uppercase tracking-widest mb-2 block">Adding to Portfolio</label>
+              <select
+                value={selectedPortfolioId}
+                onChange={(e) => setSelectedPortfolioId(e.target.value)}
+                disabled={!!initialData}
+                className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3
+                           text-white font-mono focus:border-neon-cyan focus:outline-none
+                           focus:shadow-[0_0_15px_rgba(0,245,255,0.3)] transition-all disabled:opacity-50 appearance-none"
+              >
+                {portfolios.map(p => {
+                  const exchangeLabel = EXCHANGES_MAPPED.find(e => e.id === p.broker)?.label || p.broker;
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {p.name} (Type: {exchangeLabel})
+                    </option>
+                  );
+                })}
+              </select>
             </div>
-            <div className="text-right">
-              <label className="text-xs text-slate-500 uppercase tracking-widest block">Type</label>
-              <p className="text-xs text-slate-400">{broker}</p>
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-xl border border-slate-700/30">
+              <div>
+                <label className="text-xs text-slate-500 uppercase tracking-widest block">Adding to Portfolio</label>
+                <p className="font-mono text-neon-cyan font-bold">{displayName}</p>
+              </div>
+              <div className="text-right">
+                <label className="text-xs text-slate-500 uppercase tracking-widest block">Type</label>
+                <p className="text-xs text-slate-400">{EXCHANGES_MAPPED.find(e => e.id === broker)?.label || broker}</p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Amount */}
           <div>

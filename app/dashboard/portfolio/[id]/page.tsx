@@ -42,8 +42,8 @@ interface PortfolioData {
     name: string;
     description: string | null;
     exchangeType: string | null;
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt: Date | null;
+    updatedAt: Date | null;
   };
   transactions: Transaction[];
 }

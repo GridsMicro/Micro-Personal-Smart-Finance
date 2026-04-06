@@ -5,10 +5,10 @@ import { X } from "lucide-react";
 import {
   AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from "recharts";
-import { GlassCard } from "./ui/GlassCard";
-import { NeonButton } from "./ui/NeonButton";
-import { MarketData, DailySnapshot } from "../lib/constants";
-import { IconWithFallback } from "./IconWithFallback";
+import { GlassCard } from "../ui/GlassCard";
+import { NeonButton } from "../ui/NeonButton";
+import { MarketData, DailySnapshot } from "../../lib/constants";
+import { IconWithFallback } from "../IconWithFallback";
 
 interface AssetDetailViewProps {
   asset: string;

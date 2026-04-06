@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { X, Wallet } from "lucide-react";
-import { GlassCard } from "./ui/GlassCard";
-import { NeonButton } from "./ui/NeonButton";
-import { EXCHANGES_MAPPED } from "../lib/constants";
+import { GlassCard } from "../ui/GlassCard";
+import { NeonButton } from "../ui/NeonButton";
+import { EXCHANGES_MAPPED } from "../../lib/constants";
 
 interface PortfolioModalProps {
   isOpen: boolean;

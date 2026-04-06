@@ -9,6 +9,7 @@ import {
   date,
   unique,
   jsonb,
+  boolean,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccount } from "next-auth/adapters";
 
@@ -124,3 +125,38 @@ export const portfolios = pgTable("portfolios", {
   // Each user can have multiple portfolios with unique names
   unq: unique().on(table.userId, table.name),
 }));
+
+// --- Asset Management Tables ---
+
+export const assets = pgTable("assets", {
+  id: serial("id").primaryKey(),
+  symbol: text("symbol").unique().notNull(), // "BTC", "ETH", "SOL"
+  name: text("name").notNull(),              // "Bitcoin", "Ethereum"
+  type: text("type").default("CRYPTO"),      // CRYPTO, STABLECOIN, FIAT
+  isActive: boolean("is_active").default(true),
+  contentPath: text("content_path"),         // Path to .md file
+  officialWebsite: text("official_website"),
+  createdBy: text("created_by"),             // Creator/Founder name
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const assetMetadata = pgTable("asset_metadata", {
+  id: serial("id").primaryKey(),
+  assetId: integer("asset_id").references(() => assets.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  value: text("value"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  unq: unique().on(table.assetId, table.key),
+}));
+
+export const priceSnapshots = pgTable("price_snapshots", {
+  id: serial("id").primaryKey(),
+  assetSymbol: text("asset_symbol").notNull().references(() => assets.symbol),
+  priceThb: decimal("price_thb", { precision: 20, scale: 8 }).notNull(),
+  source: text("source").notNull(),
+  recordedAt: timestamp("recorded_at").defaultNow(),
+  metadata: jsonb("metadata"),
+});

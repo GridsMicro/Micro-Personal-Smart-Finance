@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db";
-import { dailySnapshots, assets } from "@/app/db/schema";
+import { dailySnapshots, assets, priceSnapshots } from "@/app/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 
 // ============ PRICE FETCHING FUNCTIONS ============
@@ -135,6 +135,13 @@ export async function GET(request: Request) {
 
     console.log("[CRON] Starting price snapshot at", new Date().toISOString());
 
+    // [MODIFIED]: Query active assets from centralized table
+    const activeAssetsList = await db.query.assets.findMany({
+      where: eq(assets.isActive, true)
+    });
+    const activeSymbols = new Set(activeAssetsList.map(a => a.symbol));
+    console.log(`[CRON] Found ${activeSymbols.size} active assets to track:`, Array.from(activeSymbols));
+
     // Fetch prices from all sources
     const [binancePrices, bitkubPrices, okxPrices, coingeckoPrices, usdthbRate] = await Promise.all([
       fetchBinanceTHPrices(),
@@ -144,25 +151,39 @@ export async function GET(request: Request) {
       fetchUSDTTHBRate()
     ]);
 
-    // Merge prices - prioritize: Binance TH > Bitkub > OKX > CoinGecko
+    // Merge prices but ONLY for active assets!
     const mergedPrices: Record<string, { binance?: number; bitkub?: number; okx?: number; coingecko?: number }> = {};
+    const priceSnapshotsToInsert: any[] = [];
 
-    Object.keys({ ...binancePrices, ...bitkubPrices, ...okxPrices, ...coingeckoPrices }).forEach(asset => {
-      mergedPrices[asset] = {
-        binance: binancePrices[asset],
-        bitkub: bitkubPrices[asset],
-        okx: okxPrices[asset] ? okxPrices[asset] * usdthbRate : undefined,
-        coingecko: coingeckoPrices[asset]
-      };
+    activeSymbols.forEach(asset => {
+      const bPrice = binancePrices[asset];
+      const bkPrice = bitkubPrices[asset];
+      const okxPrice = okxPrices[asset] ? okxPrices[asset] * usdthbRate : undefined;
+      const cgPrice = coingeckoPrices[asset];
+
+      if (bPrice || bkPrice || okxPrice || cgPrice) {
+        mergedPrices[asset] = {
+          binance: bPrice,
+          bitkub: bkPrice,
+          okx: okxPrice,
+          coingecko: cgPrice
+        };
+        
+        // Prepare insertions for price_snapshots table
+        if (bPrice) priceSnapshotsToInsert.push({ assetSymbol: asset, priceThb: bPrice.toString(), source: "BINANCE_TH" });
+        if (bkPrice) priceSnapshotsToInsert.push({ assetSymbol: asset, priceThb: bkPrice.toString(), source: "BITKUB" });
+        if (okxPrice) priceSnapshotsToInsert.push({ assetSymbol: asset, priceThb: okxPrice.toString(), source: "OKX" });
+        if (cgPrice) priceSnapshotsToInsert.push({ assetSymbol: asset, priceThb: cgPrice.toString(), source: "COINGECKO" });
+      }
     });
 
-    // Get active assets from database
-    const activeAssets = await db.query.assets.findMany({
-      where: eq(assets.isActive, true)
-    });
+    console.log(`[CRON] Prices fetched for ${Object.keys(mergedPrices).length} active assets`);
 
-    console.log(`[CRON] Active assets: ${activeAssets.length}`);
-    console.log(`[CRON] Prices fetched: ${Object.keys(mergedPrices).length} assets`);
+    // Insert into price_snapshots
+    if (priceSnapshotsToInsert.length > 0) {
+      await db.insert(priceSnapshots).values(priceSnapshotsToInsert);
+      console.log(`[CRON] Saved ${priceSnapshotsToInsert.length} price records to price_snapshots table`);
+    }
 
     // Store in daily_snapshots as latest prices
     const today = new Date().toISOString().split("T")[0];
@@ -179,18 +200,16 @@ export async function GET(request: Request) {
       // Update existing snapshot with new prices
       await db.update(dailySnapshots)
         .set({
-          holdingsJson: mergedPrices,
-          updatedAt: new Date()
+          holdingsJson: mergedPrices
         })
         .where(eq(dailySnapshots.id, existingSnapshot.id));
     } else {
       // Create new snapshot
       await db.insert(dailySnapshots).values({
-        date: new Date(),
-        totalValue: 0, // Will be calculated based on user holdings
+        date: new Date().toISOString(), // Use string to match date type or just new Date()
+        totalValue: "0", // Will be calculated based on user holdings
         holdingsJson: mergedPrices,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: new Date()
       });
     }
 

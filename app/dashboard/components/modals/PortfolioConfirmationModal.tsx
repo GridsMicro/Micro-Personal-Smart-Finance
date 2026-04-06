@@ -1,9 +1,9 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import { GlassCard } from "./ui/GlassCard";
-import { NeonButton } from "./ui/NeonButton";
-import { EXCHANGES_MAPPED } from "../lib/constants";
+import { GlassCard } from "../ui/GlassCard";
+import { NeonButton } from "../ui/NeonButton";
+import { EXCHANGES_MAPPED } from "../../lib/constants";
 
 interface PortfolioConfirmationModalProps {
   isOpen: boolean;
