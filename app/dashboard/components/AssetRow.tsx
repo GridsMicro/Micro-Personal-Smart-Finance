@@ -1,19 +1,20 @@
 "use client";
 
 import { Edit3, Trash2 } from "lucide-react";
-import { PortfolioItem, MarketData } from "../lib/constants";
+import { PortfolioItem, MarketData, EXCHANGES_MAPPED } from "../lib/constants";
 import { getPriceKey } from "../lib/priceUtils";
 import { IconWithFallback } from "./IconWithFallback";
 
 interface AssetRowProps {
   item: PortfolioItem;
+  portfolioName?: string;
   prices: MarketData;
   onClick: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-export function AssetRow({ item, prices, onClick, onEdit, onDelete }: AssetRowProps) {
+export function AssetRow({ item, portfolioName, prices, onClick, onEdit, onDelete }: AssetRowProps) {
   const currentPrice = (prices[getPriceKey(item.broker)] as Record<string, number>)?.[item.asset] ?? 0;
   const value = item.amount * currentPrice;
   const avgPrice = item.avgPrice ?? 0;
@@ -21,13 +22,18 @@ export function AssetRow({ item, prices, onClick, onEdit, onDelete }: AssetRowPr
     ? ((currentPrice - avgPrice) / avgPrice) * 100
     : 0;
 
+  // [FIXED: 2026-04-08] Always use portfolioName if provided, otherwise lookup exchange label
+  const displayBrokerLabel = portfolioName || 
+    EXCHANGES_MAPPED.find(e => e.id === item.broker)?.label || 
+    item.broker;
+
   return (
     <div className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-white/5 transition-colors group">
       <div className="col-span-3 flex items-center gap-3">
         <IconWithFallback asset={item.asset} className="w-8 h-8" />
         <div>
           <p className="font-bold text-white">{item.asset}</p>
-          <p className="text-xs text-slate-500">{item.broker}</p>
+          <p className="text-xs text-slate-500">{displayBrokerLabel}</p>
         </div>
       </div>
       <div className="col-span-2 text-right">

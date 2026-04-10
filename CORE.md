@@ -282,6 +282,36 @@ if (session.user.role === "superadmin") { ... }
 - **Before:** `portfolios` เก็บแค่ชื่อแทน `broker` (Level 1)
 - **After:** `portfolios` เป็น entity จริง มี transactions linked ผ่าน `portfolio_id`
 
+#### ⚠️ ARCHITECTURE RULE (สำคัญมากสำหรับ AI Agents):
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│              PORTFOLIO-ASSET RELATIONSHIP RULES                   │
+├────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. Transactions ต้องเชื่อมโยงกับ portfolioId เสมอ               │
+│     └─> ห้าม group assets ตาม broker/exchange type               │
+│     └─> แต่ละ portfolio ต้องมี assets เป็นของตัวเอง              │
+│                                                                 │
+│  2. Portfolio ID เป็น Primary Key สำหรับการคำนวณ                  │
+│     └─> ใช้ dbId เป็น key ในการ lookup assets                   │
+│     └─> ห้ามใช้ exchangeType เป็น key ซ้ำกัน                     │
+│                                                                 │
+│  3. Multiple portfolios สามารถมี exchange เดียวกัน              │
+│     └─> เช่น BINANCE_TH ได้หลาย portfolios                      │
+│     └─> แต่ละ portfolio มี assets และยอดรวมต่างกัน              │
+│                                                                 │
+│  4. ตัวอย่างที่ถูกต้อง:                                          │
+│     Big Jak (id=12): ฿50,000  ← assets ของ portfolio 12         │
+│     Big Port (id=13): ฿30,000  ← assets ของ portfolio 13        │
+│     Jak Sub (id=15): ฿20,000   ← assets ของ portfolio 15        │
+│                                                                 │
+│  ❌ ตัวอย่างที่ผิด (ห้ามทำ):                                     │
+│     ทุก portfolio แสดงยอดเดียวกัน (เพราะ group ตาม exchange)    │
+│                                                                 │
+└────────────────────────────────────────────────────────────────┘
+```
+
 #### Database Schema (Level 2):
 
 ```typescript
@@ -376,6 +406,50 @@ psql $DATABASE_URL -f app/db/migrations/0003_standardize_portfolio_schema.sql
                                     ↓
 [Calculate Holdings] → Group by portfolio_id
 ```
+
+#### Analytics Dashboard & Scalability Plan:
+
+**File:** `app/dashboard/analytics/page.tsx`
+
+**API Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/analytics/trends` | แนวโน้มมูลค่ารวม (dailySnapshots) |
+| GET | `/api/analytics/coins` | Performance รายเหรียญ (portfolioCoinSnapshots) |
+
+**Scalability Strategy (เมื่อมี asset เยอะ):**
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│              CHART SCALABILITY LIMITS                          │
+├───────────────────────────────────────────────────────────────┤
+│                                                                │
+│  1. Pie Chart (สัดส่วนสินทรัพย์)                                │
+│     └─ แสดงแค่ MAX_ASSETS_IN_PIE = 10 อันดับแรก                │
+│     └─ ที่เหลือรวมเป็น "Others (N)"                            │
+│                                                                │
+│  2. Bar Chart (มูลค่าตามเหรียญ)                                │
+│     └─ แสดงแค่ 10 อันดับแรก (มีมูลค่าสูงสุด)                   │
+│     └─ ใช้ layout="vertical" ประหยัดพื้นที่แนวนอน              │
+│                                                                │
+│  3. Trend Chart (แนวโน้ม)                                      │
+│     └─ ไม่จำกัด - แสดงแค่มูลค่ารวม ไม่ใช่รายเหรียญ            │
+│                                                                │
+│  4. Data Table (รายละเอียด)                                    │
+│     └─ แสดงทุกเหรียญ แต่ pagination ถ้าเกิน 20 รายการ          │
+│                                                                │
+│  5. Filters ช่วยให้โฟกัสเฉพาะสินทรัพย์ที่สนใจ                  │
+│     └─ Filter by portfolio                                     │
+│     └─ Filter by date range                                    │
+│     └─ Search/Select specific asset                            │
+│                                                                │
+└───────────────────────────────────────────────────────────────┘
+```
+
+**Future Enhancements:**
+- Lazy loading สำหรับ chart data
+- Aggregation รายสัปดาห์/รายเดือน เมื่อข้อมูลย้อนหลังมาก
+- Toggle show/hide specific assets บน trend chart
 
 #### Portfolio Detail Page:
 

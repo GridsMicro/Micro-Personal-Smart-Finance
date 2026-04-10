@@ -269,12 +269,14 @@ function PortfolioCard({
 function AssetRow({ 
   item, 
   prices,
+  portfolioName,
   onClick,
   onEdit,
   onDelete
 }: { 
   item: PortfolioItem;
   prices: MarketData;
+  portfolioName?: string;
   onClick: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -288,8 +290,10 @@ function AssetRow({
     ? ((marketPrice - item.avgPrice) / item.avgPrice) * 100 
     : 0;
   
-  // [DEBUG]: Check market price vs avgPrice for P&L calculation
-  console.log(`[P&L DEBUG] ${item.asset}: broker=${item.broker}, priceKey=${priceKey}, marketPrice=${marketPrice}, avgPrice=${item.avgPrice}, priceSourceKeys=${Object.keys(priceSource || {})}`);
+  // [FIXED: 2026-04-08] Use portfolioName if provided, otherwise lookup exchange label
+  const displayBrokerLabel = portfolioName || 
+    EXCHANGES_MAPPED.find(e => e.id === item.broker)?.label || 
+    item.broker;
   
   return (
     <div 
@@ -305,7 +309,7 @@ function AssetRow({
         <IconWithFallback asset={item.asset} className="w-10 h-10" />
         <div>
           <p className="font-black text-white tracking-tight">{item.asset}</p>
-          <p className="text-xs text-slate-500 font-mono">{item.broker}</p>
+          <p className="text-xs text-slate-500 font-mono">{displayBrokerLabel}</p>
         </div>
       </div>
       
@@ -806,39 +810,31 @@ export default function CyberpunkDashboard() {
     const tab = searchParams.get('tab');
     const portfolioId = searchParams.get('portfolio');
     
+    // [DEBUG: 2026-04-08] Trace auto-open behavior
+    console.log(`[DEBUG] Auto-open check - tab: ${tab}, portfolioId: "${portfolioId}", loading: ${loading}, truthy: ${!!portfolioId}`);
+    
     if (tab === 'assets' && !loading) {
+      console.log(`[DEBUG] tab=assets and !loading, checking portfolioId...`);
       setActiveTab('assets');
       
-      // If portfolio ID is provided, find the exchangeType and pre-select it
+      // If portfolio ID is provided, pre-select it
       if (portfolioId) {
+        console.log(`[DEBUG] portfolioId is truthy: "${portfolioId}"`);
         const portfolio = portfolioNames.find(p => p.id === parseInt(portfolioId));
         if (portfolio) {
-          console.log(`[DEBUG] Auto-selecting portfolio from URL: ${portfolio.exchangeType}`);
-          setSelectedPortfolio(portfolio.exchangeType);
+          console.log(`[DEBUG] Found portfolio: ${portfolio.exchangeType}, id: ${portfolio.id}`);
+          // [FIXED: 2026-04-08] Use portfolio id (dbId) instead of exchangeType for consistent filtering
+          setSelectedPortfolio(portfolio.id.toString());
           
-          // Auto-open asset modal with this portfolio pre-selected
-          setTimeout(() => {
-            setEditingAsset({
-              broker: portfolio.exchangeType,
-              asset: 'BTC',
-              amount: 0
-            });
-            setShowAssetModal(true);
-          }, 300);
+          // [REMOVED: 2026-04-08] No auto-open modal - only open via button click
         } else {
-          // Portfolio not found, just open modal
-          setTimeout(() => {
-            setEditingAsset(null);
-            setShowAssetModal(true);
-          }, 300);
+          console.log(`[DEBUG] Portfolio not found for ID: ${portfolioId}`);
         }
       } else {
-        // No portfolio specified, just open modal
-        setTimeout(() => {
-          setEditingAsset(null);
-          setShowAssetModal(true);
-        }, 300);
+        console.log(`[DEBUG] No portfolioId, NOT opening modal automatically`);
       }
+    } else {
+      console.log(`[DEBUG] Skipping auto-open: tab=${tab}, loading=${loading}`);
     }
   }, [searchParams, portfolioNames, loading]);
   
@@ -855,17 +851,24 @@ export default function CyberpunkDashboard() {
     //   2. Create Portfolio object for EACH exchangeType in portfolioNames
     //   3. Merge transaction assets into each portfolio
     
-    const portfolioMap = new Map<string, PortfolioItem[]>();
+    // [FIXED: 2026-04-08] Group transactions by portfolioId instead of exchange type
+    // Reason: Each portfolio should have its own assets, not share by exchange type
+    const portfolioMap = new Map<number, PortfolioItem[]>();
     
-    // First, group transactions by exchangeType (not broker)
     transactions.forEach(tx => {
-      // Use exchangeType from tx.broker (they should match)
-      const exchange = tx.broker;
-      if (!portfolioMap.has(exchange)) {
-        portfolioMap.set(exchange, []);
+      // Use portfolioId to group assets per portfolio
+      const portfolioId = tx.portfolioId;
+      if (portfolioId === null || portfolioId === undefined) {
+        // Skip transactions without portfolioId (legacy data)
+        console.log(`[DEBUG] Skipping transaction without portfolioId: ${tx.asset}`);
+        return;
       }
       
-      const assets = portfolioMap.get(exchange)!;
+      if (!portfolioMap.has(portfolioId)) {
+        portfolioMap.set(portfolioId, []);
+      }
+      
+      const assets = portfolioMap.get(portfolioId)!;
       const existing = assets.find(a => a.asset === tx.asset);
       const amount = parseFloat(tx.amount);
       
@@ -880,7 +883,7 @@ export default function CyberpunkDashboard() {
         }
       } else {
         assets.push({
-          broker: exchange,
+          broker: tx.broker,
           asset: tx.asset,
           amount: tx.type === "DEPOSIT" ? amount : -amount,
           avgPrice: tx.price ? parseFloat(tx.price) : undefined
@@ -889,31 +892,27 @@ export default function CyberpunkDashboard() {
     });
 
     console.log(`[DEBUG] Portfolio map entries: ${portfolioMap.size}`);
-    portfolioMap.forEach((assets, exchange) => {
-      console.log(`[DEBUG] Exchange ${exchange}: ${assets.length} assets`);
+    portfolioMap.forEach((assets, portfolioId) => {
+      console.log(`[DEBUG] Portfolio ${portfolioId}: ${assets.length} assets`);
     });
     
-    // Get all exchange types that have custom names (from API portfolios)
-    const allExchangeTypes = new Set([
-      ...Array.from(portfolioMap.keys()), // From transactions
-      ...portfolioNames.map(p => p.exchangeType) // From API portfolios
-    ]);
+    // [FIXED: 2026-04-08] Changed to iterate through ALL portfolios from API
+    // Reason: Multiple portfolios with same exchange type were not showing
+    // Changes: Iterate through portfolioNames (from API) instead of exchange types
     
-    console.log(`[DEBUG] All exchange types: ${allExchangeTypes.size}`, Array.from(allExchangeTypes));
+    console.log(`[DEBUG] Processing ${portfolioNames.length} portfolios from API`);
     
-    // Convert to Portfolio array - ITERATE OVER ALL EXCHANGE TYPES
-    const result = Array.from(allExchangeTypes).map((exchange) => {
+    // Convert to Portfolio array - ITERATE OVER ALL PORTFOLIOS FROM API
+    const result = portfolioNames.map((apiPortfolio) => {
+      const exchange = apiPortfolio.exchangeType;
       const exchangeInfo = EXCHANGES_MAPPED.find(e => e.id === exchange);
-      const assets = portfolioMap.get(exchange) || [];
+      const dbId = apiPortfolio.id;
+      // [FIXED: 2026-04-08] Get assets by portfolioId (dbId) instead of exchange
+      const assets = portfolioMap.get(dbId) || [];
       const validAssets = assets.filter(a => Math.abs(a.amount) > 0.000001);
       
-      console.log(`[DEBUG] Processing exchange ${exchange}: found ${assets.length} assets in map, ${validAssets.length} valid assets`);
-      
-      // Get the custom name and dbId from API
-      const apiPortfolio = portfolioNames.find(p => p.exchangeType === exchange);
-      const customName = apiPortfolio?.name;
-      const dbId = apiPortfolio?.id;
-      console.log(`[DEBUG] Custom name for ${exchange}: ${customName || 'none'}, dbId: ${dbId || 'none'}`);
+      const customName = apiPortfolio.name;
+      console.log(`[DEBUG] Processing portfolio ${dbId}: ${customName} (${exchange}), assets: ${validAssets.length}`);
       
       const totalValue = validAssets.reduce((sum, asset) => {
         const price = (prices[getPriceKey(exchange)] as Record<string, number>)?.[asset.asset] ?? 0;
@@ -921,8 +920,9 @@ export default function CyberpunkDashboard() {
       }, 0);
       
       return {
-        id: exchange,
+        id: dbId.toString(),  // Always use dbId as unique id
         dbId,
+        exchangeType: exchange,
         name: customName || exchangeInfo?.label || exchange,
         customName,
         broker: exchange,
@@ -931,13 +931,9 @@ export default function CyberpunkDashboard() {
         assets: validAssets
       };
     }).filter(p => {
-      // Show portfolios that:
-      // 1. Have assets, OR
-      // 2. Have a custom name from API (even if 0 assets)
-      const hasCustomName = p.customName !== undefined;
-      const hasAssets = p.assets.length > 0;
-      const shouldShow = hasAssets || hasCustomName;
-      console.log(`[DEBUG] Portfolio ${p.id} (${p.name}): ${shouldShow ? '✓ SHOW' : '✗ HIDE'} (assets: ${p.assets.length}, customName: ${hasCustomName})`);
+      // Show all portfolios from API (they all have dbId and customName)
+      const shouldShow = true; // Always show portfolios from API
+      console.log(`[DEBUG] Portfolio ${p.id} (${p.name}): ${shouldShow ? '✓ SHOW' : '✗ HIDE'}`);
       return shouldShow;
     });
     
@@ -1011,6 +1007,9 @@ export default function CyberpunkDashboard() {
       if (data.broker) {
         setSelectedPortfolio(data.broker);
       }
+      
+      // [ADDED: 2026-04-08] Refresh page after successful save
+      window.location.reload();
     } catch (err) {
       console.error("Failed to save asset:", err);
       alert("Failed to save: " + (err instanceof Error ? err.message : "Unknown error"));
@@ -1294,19 +1293,25 @@ export default function CyberpunkDashboard() {
               
               {/* Asset Rows */}
               <div className="divide-y divide-white/5">
-                {currentAssets.map((item, idx) => (
-                  <AssetRow
-                    key={`${item.broker}_${item.asset}_${idx}`}
-                    item={item}
-                    prices={prices}
-                    onClick={() => setSelectedAsset(item.asset)}
-                    onEdit={() => {
-                      setEditingAsset(item);
-                      setShowAssetModal(true);
-                    }}
-                    onDelete={() => handleDeleteAsset(item)}
-                  />
-                ))}
+                {(selectedPortfolio
+                  ? portfolios.filter(p => p.id === selectedPortfolio)
+                  : portfolios
+                ).flatMap(p =>
+                  p.assets.map((item, idx) => (
+                    <AssetRow
+                      key={`${p.id}_${item.asset}_${idx}`}
+                      item={item}
+                      portfolioName={p.name}
+                      prices={prices}
+                      onClick={() => setSelectedAsset(item.asset)}
+                      onEdit={() => {
+                        setEditingAsset(item);
+                        setShowAssetModal(true);
+                      }}
+                      onDelete={() => handleDeleteAsset(item)}
+                    />
+                  ))
+                )}
               </div>
               
               {currentAssets.length === 0 && (

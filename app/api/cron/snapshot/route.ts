@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../db";
-import { transactions, dailySnapshots, users } from "../../../db/schema";
+import { transactions, dailySnapshots, users, portfolioCoinSnapshots, feeDailySnapshots } from "../../../db/schema";
 import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -79,6 +79,52 @@ export async function GET(req: Request) {
         }
       });
 
+      // 3.1 Group by portfolioId for coin-level snapshots
+      const portfolioHoldings: Record<number, Record<string, { amount: number; broker: string }>> = {};
+      
+      userTxs.forEach(tx => {
+        const portfolioId = tx.portfolioId;
+        if (!portfolioId) return; // Skip if no portfolioId
+        
+        if (!portfolioHoldings[portfolioId]) {
+          portfolioHoldings[portfolioId] = {};
+        }
+        
+        if (!portfolioHoldings[portfolioId][tx.asset]) {
+          portfolioHoldings[portfolioId][tx.asset] = { amount: 0, broker: tx.broker };
+        }
+        
+        const amt = parseFloat(tx.amount || "0");
+        if (tx.type === "DEPOSIT") {
+          portfolioHoldings[portfolioId][tx.asset].amount += amt;
+        } else {
+          portfolioHoldings[portfolioId][tx.asset].amount -= amt;
+        }
+      });
+
+      // 3.1 Group by portfolioId for coin-level snapshots
+      const portfolioHoldings: Record<number, Record<string, { amount: number; broker: string }>> = {};
+      
+      userTxs.forEach(tx => {
+        const portfolioId = tx.portfolioId;
+        if (!portfolioId) return; // Skip if no portfolioId
+        
+        if (!portfolioHoldings[portfolioId]) {
+          portfolioHoldings[portfolioId] = {};
+        }
+        
+        if (!portfolioHoldings[portfolioId][tx.asset]) {
+          portfolioHoldings[portfolioId][tx.asset] = { amount: 0, broker: tx.broker };
+        }
+        
+        const amt = parseFloat(tx.amount || "0");
+        if (tx.type === "DEPOSIT") {
+          portfolioHoldings[portfolioId][tx.asset].amount += amt;
+        } else {
+          portfolioHoldings[portfolioId][tx.asset].amount -= amt;
+        }
+      });
+
       // Calculate Net Worth based on the original Dashboard logic
       let netWorthTHB = 0;
       Object.entries(brokerHoldings).forEach(([_, item]) => {
@@ -104,6 +150,7 @@ export async function GET(req: Request) {
         netWorthTHB += (amount * price);
       });
 
+      // 3.2 Save daily snapshot (user level)
       if (Object.keys(holdings).length > 0) {
         await db.insert(dailySnapshots).values({
           userId: user.id,
@@ -119,9 +166,87 @@ export async function GET(req: Request) {
           }
         });
       }
+
+      // 3.3 Save coin-level snapshots per portfolio
+      for (const [portfolioIdStr, assets] of Object.entries(portfolioHoldings)) {
+        const portfolioId = parseInt(portfolioIdStr);
+        
+        for (const [asset, data] of Object.entries(assets)) {
+          const amount = data.amount;
+          if (Math.abs(amount) < 0.000001) continue; // Skip zero balances
+          
+          // Calculate price
+          const broker = data.broker;
+          let price = 0;
+          const src = broker.toLowerCase().replace("_th", "");
+          if (marketMap[src] && marketMap[src][asset]) {
+            price = marketMap[src][asset];
+            if (src === "okx") price *= usdRate;
+          } else if (marketMap.bitkub[asset]) {
+            price = marketMap.bitkub[asset];
+          } else if (marketMap.binance[asset]) {
+            price = marketMap.binance[asset];
+          } else if (asset === "USDT" || asset === "USDC") {
+            price = usdRate;
+          } else if (asset === "THB") {
+            price = 1;
+          }
+          
+          const valueThb = amount * price;
+          
+          await db.insert(portfolioCoinSnapshots).values({
+            portfolioId,
+            userId: user.id,
+            asset,
+            amount: amount.toFixed(8),
+            priceThb: price.toFixed(8),
+            valueThb: valueThb.toFixed(2),
+            date: today
+          }).onConflictDoUpdate({
+            target: [portfolioCoinSnapshots.portfolioId, portfolioCoinSnapshots.asset, portfolioCoinSnapshots.date],
+            set: {
+              amount: amount.toFixed(8),
+              priceThb: price.toFixed(8),
+              valueThb: valueThb.toFixed(2)
+            }
+          });
+        }
+      }
+
+      // 3.4 Save fee snapshots
+      const feeTxs = await db.select().from(transactions).where(eq(transactions.userId, user.id)).where(eq(transactions.type, 'FEE'));
+      const feeHoldings: Record<string, number> = {};
+      feeTxs.forEach(tx => {
+        const amt = parseFloat(tx.amount || "0");
+        if (!feeHoldings[tx.asset]) feeHoldings[tx.asset] = 0;
+        feeHoldings[tx.asset] += amt;
+      });
+      for (const [asset, amount] of Object.entries(feeHoldings)) {
+        const price = marketMap.bitkub[asset] || marketMap.binance[asset] || (asset === "USDT" ? usdRate : 1);
+        const valueThb = amount * price;
+        await db.insert(feeDailySnapshots).values({
+          userId: user.id,
+          asset,
+          amount: amount.toFixed(8),
+          priceThb: price.toFixed(8),
+          valueThb: valueThb.toFixed(2),
+          date: today
+        }).onConflictDoUpdate({
+          target: [feeDailySnapshots.userId, feeDailySnapshots.asset, feeDailySnapshots.date],
+          set: {
+            amount: amount.toFixed(8),
+            priceThb: price.toFixed(8),
+            valueThb: valueThb.toFixed(2)
+          }
+        });
+      }
     }
 
-    return NextResponse.json({ success: true, date: today });
+    return NextResponse.json({ 
+      success: true, 
+      date: today,
+      message: "Daily snapshots + coin-level portfolio snapshots + fee snapshots completed"
+    });
 
   } catch (error: any) {
     console.error("6AM CRON MASTER FAILED:", error);

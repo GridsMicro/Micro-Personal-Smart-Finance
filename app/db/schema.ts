@@ -86,6 +86,10 @@ export const transactions = pgTable("transactions", {
   type: text("type").notNull(), // 'DEPOSIT' or 'WITHDRAW'
   note: text("note"),
   date: date("date").notNull(),
+  // [NEW: 2026-04-08] Fee tracking fields
+  fee: decimal("fee", { precision: 20, scale: 8 }), // ค่าธรรมเนียมที่จ่าย
+  feeCurrency: text("fee_currency"), // สกุลเงินของค่าธรรมเนียม (e.g., THB, BTC)
+  feePercent: decimal("fee_percent", { precision: 5, scale: 2 }), // เปอร์เซ็นต์ค่าธรรมเนียม (ถ้ามี)
   createdAt: timestamp("created_at").defaultNow(),
 });
 export const marketPrices = pgTable("market_prices", {
@@ -129,6 +133,38 @@ export const portfolios = pgTable("portfolios", {
   unq: unique().on(table.userId, table.name),
 }));
 
+// --- Broker Fee Configuration Table ---
+// เก็บค่าธรรมเนียมแต่ละโบรก (สามารถแก้ไขได้ตามประกาศของโบรก)
+export const brokerFees = pgTable("broker_fees", {
+  id: serial("id").primaryKey(),
+  brokerId: text("broker_id").notNull().unique(), // BINANCE_TH, BITKUB, OKX, etc.
+  name: text("name").notNull(), // ชื่อแสดงผล
+  spotMakerFee: decimal("spot_maker_fee", { precision: 5, scale: 3 }).notNull().default("0.100"), // %
+  spotTakerFee: decimal("spot_taker_fee", { precision: 5, scale: 3 }).notNull().default("0.100"), // %
+  withdrawalFee: decimal("withdrawal_fee", { precision: 20, scale: 8 }).default("0"), // ค่าถอนคงที่
+  withdrawalFeeCurrency: text("withdrawal_fee_currency").default("THB"),
+  minWithdrawal: decimal("min_withdrawal", { precision: 20, scale: 2 }).default("0"), // ถอนขั้นต่ำ
+  depositFee: decimal("deposit_fee", { precision: 20, scale: 8 }).default("0"), // ค่าฝาก (มักเป็น 0)
+  isActive: boolean("is_active").default(true),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// --- Fee Summary Snapshot ---
+// สรุปค่าธรรมเนียมรายวัน (สร้างโดย cron job)
+export const feeDailySnapshots = pgTable("fee_daily_snapshots", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  portfolioId: integer("portfolio_id").references(() => portfolios.id),
+  totalFees: decimal("total_fees", { precision: 20, scale: 2 }).notNull().default("0"), // ค่าธรรมเนียมรวม THB
+  feesByBroker: jsonb("fees_by_broker").notNull().default({}), // { BINANCE_TH: 125.50, BITKUB: 80.00 }
+  feesByAsset: jsonb("fees_by_asset").notNull().default({}), // { BTC: 0.001, ETH: 0.05 }
+  transactionCount: integer("transaction_count").default(0),
+  date: date("date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  unq: unique().on(table.userId, table.portfolioId, table.date),
+}));
+
 // --- Asset Management Tables ---
 
 export const assets = pgTable("assets", {
@@ -163,3 +199,24 @@ export const priceSnapshots = pgTable("price_snapshots", {
   recordedAt: timestamp("recorded_at").defaultNow(),
   metadata: jsonb("metadata"),
 });
+
+// --- Portfolio Coin Snapshots (Level 2) ---
+// เก็บ snapshot รายเหรียญ รายพอร์ต รายวัน
+export const portfolioCoinSnapshots = pgTable("portfolio_coin_snapshots", {
+  id: serial("id").primaryKey(),
+  portfolioId: integer("portfolio_id")
+    .notNull()
+    .references(() => portfolios.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  asset: text("asset").notNull(), // BTC, ETH, etc.
+  amount: decimal("amount", { precision: 20, scale: 8 }).notNull(),
+  priceThb: decimal("price_thb", { precision: 20, scale: 8 }).notNull(),
+  valueThb: decimal("value_thb", { precision: 20, scale: 2 }).notNull(),
+  date: date("date").notNull(), // YYYY-MM-DD
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // วันละหนึ่งรายการต่อ portfolio + asset
+  unq: unique().on(table.portfolioId, table.asset, table.date),
+}));

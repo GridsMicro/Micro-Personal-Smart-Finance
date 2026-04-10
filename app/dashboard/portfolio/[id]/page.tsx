@@ -14,11 +14,13 @@ import {
   Plus, 
   Wallet, 
   Coins,
-  Activity
+  Activity,
+  Trash2,
+  X
 } from "lucide-react";
 import { AuthGuard } from "../../../lib/auth-guard";
 import { IconWithFallback } from "../../components/IconWithFallback";
-import { deleteTransaction, getPortfolioById } from "../../../actions/transactionActions";
+import { deleteTransaction, getPortfolioById, saveTransaction } from "../../../actions/transactionActions";
 import { getPriceKey } from "../../lib/priceUtils";
 import { EXCHANGES_MAPPED } from "../../lib/constants";
 import { GlassCard } from "../../components/ui/GlassCard";
@@ -163,6 +165,21 @@ export default function PortfolioDetailPage({
     usdthb: 35 
   });
   const [error, setError] = useState<string | null>(null);
+  
+  // [ADDED: 2026-04-08] Modal states for inline editing
+  const [showAssetModal, setShowAssetModal] = useState(false);
+  const [showEditPortfolioModal, setShowEditPortfolioModal] = useState(false);
+  
+  // [ADDED: 2026-04-08] Asset form state
+  const [assetForm, setAssetForm] = useState({
+    asset: '',
+    amount: '',
+    price: '',
+    type: 'DEPOSIT',
+    date: new Date().toISOString().split('T')[0],
+    note: ''
+  });
+  const [savingAsset, setSavingAsset] = useState(false);
 
   // Fetch market prices
   useEffect(() => {
@@ -303,6 +320,21 @@ export default function PortfolioDetailPage({
     }
   };
 
+  // [ADDED: 2026-04-08] Handle deleting individual transaction
+  const handleDeleteTransaction = async (txId: number) => {
+    if (confirm('Delete this transaction? This action cannot be undone.')) {
+      try {
+        await deleteTransaction(txId);
+        // Refresh data
+        const data = await getPortfolioById(portfolioId);
+        if (data) setPortfolioData(data);
+      } catch (err) {
+        console.error('Failed to delete transaction:', err);
+        alert('Failed to delete transaction');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <AuthGuard>
@@ -367,7 +399,7 @@ export default function PortfolioDetailPage({
               </div>
               
               <NeonButton 
-                onClick={() => router.push('/dashboard')}
+                onClick={() => setShowEditPortfolioModal(true)}
                 variant="secondary"
               >
                 Edit Portfolio
@@ -412,7 +444,7 @@ export default function PortfolioDetailPage({
               </h2>
               {portfolioItems.length > 0 && (
                 <NeonButton 
-                  onClick={() => router.push(`/dashboard?tab=assets&portfolio=${portfolioId}`)}
+                  onClick={() => setShowAssetModal(true)}
                   icon={Plus}
                 >
                   Add Asset
@@ -449,7 +481,7 @@ export default function PortfolioDetailPage({
                 <p className="text-slate-500 font-mono mb-2">No assets found</p>
                 <p className="text-slate-600 text-sm mb-4">Add your first asset to get started</p>
                 <NeonButton 
-                  onClick={() => router.push('/dashboard?tab=assets')}
+                  onClick={() => setShowAssetModal(true)}
                   icon={Plus}
                 >
                   Add Asset
@@ -469,7 +501,7 @@ export default function PortfolioDetailPage({
               <GlassCard className="overflow-hidden">
                 <div className="divide-y divide-white/5">
                   {portfolioData.transactions.slice(0, 10).map((tx) => (
-                    <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                    <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group">
                       <div className="flex items-center gap-3">
                         <div className={`w-2 h-2 rounded-full ${tx.type === 'DEPOSIT' ? 'bg-neon-green' : 'bg-red-400'}`} />
                         <div>
@@ -477,23 +509,170 @@ export default function PortfolioDetailPage({
                           <p className="text-xs text-slate-500 font-mono">{tx.date}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-mono text-white">
-                          {parseFloat(tx.amount).toLocaleString(undefined, { maximumFractionDigits: 6 })} {tx.asset}
-                        </p>
-                        {tx.price && (
-                          <p className="text-xs text-slate-500 font-mono">
-                            @ ฿{parseFloat(tx.price).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-sm font-mono text-white">
+                            {parseFloat(tx.amount).toLocaleString(undefined, { maximumFractionDigits: 6 })} {tx.asset}
                           </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                          {tx.price && (
+                            <p className="text-xs text-slate-500 font-mono">
+                              @ ฿{parseFloat(tx.price).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                            </p>
+                onClick={() => setShowEditPortfolioModal(false)}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-black text-white mb-4">Add Asset</h2>
+              <p className="text-slate-400 text-sm mb-6">
+                Portfolio: <span className="text-neon-cyan">{portfolio.name}</span>
+              </p>
+              
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!assetForm.asset || !assetForm.amount) return;
+                
+                setSavingAsset(true);
+                try {
+                  await saveTransaction({
+                    portfolioId,
+                    asset: assetForm.asset,
+                    amount: parseFloat(assetForm.amount),
+                    price: parseFloat(assetForm.price) || undefined,
+                    type: assetForm.type,
+                    date: assetForm.date,
+                    note: assetForm.note || undefined
+                  });
+
+                  // Reset form and close modal
+                  setAssetForm({
+                    asset: '',
+                    amount: '',
+                    price: '',
+                    type: 'DEPOSIT',
+                    date: new Date().toISOString().split('T')[0],
+                    note: ''
+                  });
+                  setShowAssetModal(false);
+                } catch (err) {
+                  console.error('Failed to save asset:', err);
+                  alert('Failed to save asset');
+                } finally {
+                  setSavingAsset(false);
+                }
+              }}
+              >
+                {/* Asset & Amount Row */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                      Asset
+                    </label>
+                    <input
+                      type="text"
+                      value={assetForm.asset}
+                      onChange={(e) => setAssetForm({...assetForm, asset: e.target.value})}
+                      placeholder="BTC, ETH, etc."
+                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:border-neon-cyan"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                      Amount
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={assetForm.amount}
+                      onChange={(e) => setAssetForm({...assetForm, amount: e.target.value})}
+                      placeholder="0.00"
+                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:border-neon-cyan"
+                      required
+                    />
+                  </div>
                 </div>
-              </GlassCard>
+                
+                {/* Type Row */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                    Type
+                  </label>
+                  <select
+                    value={assetForm.type}
+                    onChange={(e) => setAssetForm({...assetForm, type: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-neon-cyan"
+                  >
+                    <option value="DEPOSIT">Deposit</option>
+                    <option value="WITHDRAWAL">Withdrawal</option>
+                  </select>
+                </div>
+                
+                {/* Price & Date Row */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                      Price (THB) <span className="text-slate-600">optional</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={assetForm.price}
+                      onChange={(e) => setAssetForm({...assetForm, price: e.target.value})}
+                      placeholder="0.00"
+                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:border-neon-cyan"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={assetForm.date}
+                      onChange={(e) => setAssetForm({...assetForm, date: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-neon-cyan"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                {/* Note Field */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                    Note <span className="text-slate-600">optional</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={assetForm.note}
+                    onChange={(e) => setAssetForm({...assetForm, note: e.target.value})}
+                    placeholder="Add a note..."
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:border-neon-cyan"
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-white/10">
+                  <NeonButton onClick={() => setShowAssetModal(false)} variant="secondary">
+                    Cancel
+                  </NeonButton>
+                  <NeonButton 
+                    type="submit"
+                    disabled={savingAsset || !assetForm.asset || !assetForm.amount}
+                  >
+                    {savingAsset ? 'Saving...' : 'Save Asset'}
+                  </NeonButton>
+                </div>
+              </form>
+                <NeonButton onClick={() => setShowEditPortfolioModal(false)} variant="secondary">
+                  Cancel
+                </NeonButton>
+                <NeonButton onClick={() => setShowEditPortfolioModal(false)}>
+                  Save Changes
+                </NeonButton>
+              </div>
             </div>
-          )}
-        </main>
+          </div>
+        )}
       </div>
     </AuthGuard>
   );
