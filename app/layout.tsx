@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Smart Planner - ระบบบันทึกสินทรัพย์ดิจิทัล",
-  description: "ที่ปรึกษาทางการเงินส่วนตัวที่คุณเข้าถึงได้ทุกที่ทุกเวลา",
+  title: "Micro Personal Smart Finance",
+  description: "ระบบบริหารพอร์ตการลงทุนส่วนบุคคล สำหรับนักลงทุนยุคใหม่",
 };
 
 export default function RootLayout({
@@ -24,9 +24,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th">
+    <html lang="th" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-[#00072D]`}
       >
         <Providers>{children}</Providers>
       </body>

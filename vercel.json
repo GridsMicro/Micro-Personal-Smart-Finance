@@ -1,12 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/snapshot",
+      "path": "/api/cron/record-prices",
       "schedule": "0 23 * * *"
-    },
-    {
-      "path": "/api/cron/snapshot-prices",
-      "schedule": "*/5 * * * *"
     }
   ]
 }
