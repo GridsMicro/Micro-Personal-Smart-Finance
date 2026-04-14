@@ -87,7 +87,7 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
         <div>
           <div className="inline-flex items-center gap-1.5 text-xs text-[#5A6A9A] mb-3 px-2.5 py-1 rounded-full border border-[#0F1F55]">
             <div className="h-1.5 w-1.5 rounded-full bg-[#00E676] animate-pulse" />
-            พอร์ตตัวอย่างสาธารณะ
+            Spicial Portfolio
           </div>
           <h1 className="text-3xl font-bold text-white">{portfolio.name}</h1>
           {portfolio.description && <p className="text-sm text-[#A0A0B0] mt-1">{portfolio.description}</p>}

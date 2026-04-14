@@ -54,6 +54,22 @@ export function Navbar() {
             </button>
           </Link>
 
+          {/* Special Port Link */}
+          <Link href="/admin/special-port">
+            <button className="hidden sm:flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border border-[#00D4FF]/30 text-[#00D4FF] hover:bg-[#00D4FF]/10 transition-colors">
+              <BarChart2 className="h-3.5 w-3.5" />
+              Special Port Editor
+            </button>
+          </Link>
+          
+          {/* DCA Simulation */}
+          <Link href="/dca-simulation">
+            <button className="hidden sm:flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border border-[#7B61FF]/30 text-[#7B61FF] hover:bg-[#7B61FF]/10 transition-colors">
+              <BarChart2 className="h-3.5 w-3.5" />
+              DCA Simulation
+            </button>
+          </Link>
+
           {/* Notifications */}
           <Link href="/notifications">
             <button className="relative flex items-center justify-center h-9 w-9 rounded-lg text-[#A0A0B0] hover:bg-[#0A1845] hover:text-white transition-colors">
@@ -126,7 +142,7 @@ export function Navbar() {
             </div>
           ) : (
             <Link href="/login">
-              <Button size="sm">เข้าสู่ระบบ</Button>
+              <Button size="sm">เริ่มต้นใช้งาน</Button>
             </Link>
           )}
         </div>
@@ -141,6 +157,7 @@ export function Navbar() {
             { href: "/market", label: "ตลาด" },
             { href: "/watchlist", label: "วอตช์ลิสต์" },
             { href: "/news", label: "ข่าวสาร" },
+            { href: "/dca-simulation", label: "DCA Simulation" },
             { href: "/support", label: "ช่วยเหลือ" },
             { href: "/settings", label: "ตั้งค่า" },
           ].map((item) => (

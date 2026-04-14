@@ -18,11 +18,6 @@ export default function HomePage() {
               ฟีเจอร์
             </Link>
             <Link href="/login">
-              <button className="h-9 px-4 rounded-lg text-sm font-semibold bg-transparent border border-[#162660] text-white hover:bg-[#0A1845] transition-colors">
-                เข้าสู่ระบบ
-              </button>
-            </Link>
-            <Link href="/login">
               <button className="h-9 px-4 rounded-lg text-sm font-semibold bg-[#00D4FF] text-black hover:bg-[#00A8CC] shadow-[0_0_20px_rgba(0,212,255,0.3)] transition-all">
                 เริ่มต้นใช้งาน
               </button>

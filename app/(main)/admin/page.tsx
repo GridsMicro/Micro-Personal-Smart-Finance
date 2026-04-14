@@ -130,7 +130,8 @@ export default async function AdminPage() {
           { label: "จัดการผู้ใช้", desc: "ดู/แก้ไข role และสถานะ", icon: Users, color: "#00D4FF", href: "/admin" },
           { label: "จัดการข่าวสาร", desc: "เพิ่ม/ลบบทความข่าว", icon: FileText, color: "#7B61FF", href: "/admin/news" },
           { label: "จัดการสินทรัพย์", desc: "เพิ่ม/ลบ coins และ assets", icon: MessageSquare, color: "#00E676", href: "/admin/assets" },
-          { label: "จัดการ API", desc: "ดึงราคา real-time, cron job", icon: Settings, color: "#FFB74D", href: "/admin/api-keys" },
+          { label: "Special Port", desc: "จัดการพอร์ตตัวอย่างสาธารณะ", icon: Wallet, color: "#FFB74D", href: "/admin/special-port" },
+          { label: "จัดการ API", desc: "ดึงราคา real-time, cron job", icon: Settings, color: "#4FC3F7", href: "/admin/api-keys" },
           { label: "Support Tickets", desc: "ดูและตอบกลับ tickets", icon: MessageSquare, color: "#FF5252", href: "/support" },
         ].map((item) => {
           const Icon = item.icon;

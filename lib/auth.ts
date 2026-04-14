@@ -21,8 +21,6 @@ export const {
   signIn,
   signOut,
 } = NextAuth({
-  // ไม่ใช้ DrizzleAdapter — จัดการ user เองใน callbacks
-  // เพราะ DrizzleAdapter ต้องการ camelCase แต่ standard ของโปรเจกต์บังคับ snake_case
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: "/login", error: "/login" },
   providers: [
@@ -36,25 +34,26 @@ export const {
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
-      if (!account || !user.email) return false;
+    async signIn({ user, account, profile }) {
+      if (!account) return false;
+
+      const email = user.email ?? `${(profile as { login?: string })?.login}@github.com`;
+      if (!email) return false;
 
       try {
-        // หา user จาก email
         let [existingUser] = await db
           .select()
           .from(mcUser)
-          .where(eq(mcUser.email, user.email))
+          .where(eq(mcUser.email, email))
           .limit(1);
 
-        // สร้าง user ใหม่ถ้ายังไม่มี
         if (!existingUser) {
           const [newUser] = await db
             .insert(mcUser)
             .values({
               id: crypto.randomUUID(),
-              email: user.email,
-              name: user.name ?? null,
+              email,
+              name: user.name ?? (profile as { login?: string })?.login ?? null,
               image: user.image ?? null,
               role: "user",
               is_active: true,
@@ -63,7 +62,6 @@ export const {
           existingUser = newUser;
         }
 
-        // บันทึก OAuth account ถ้ายังไม่มี
         const [existingAccount] = await db
           .select()
           .from(mcAccount)
@@ -91,9 +89,9 @@ export const {
           });
         }
 
-        // ส่ง id และ role ไปยัง jwt callback
         user.id = existingUser.id;
         user.role = existingUser.role ?? "user";
+        user.email = email;
 
         return true;
       } catch (err) {
@@ -107,7 +105,6 @@ export const {
         token.id = user.id;
         token.role = user.role ?? "user";
       }
-      // refresh role จาก DB ถ้าไม่มีใน token
       if (token.id && !token.role) {
         const [dbUser] = await db
           .select({ role: mcUser.role })

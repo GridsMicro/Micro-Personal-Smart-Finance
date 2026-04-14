@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { specialPortfolio, specialPortfolioHoldings, assets, marketPrices } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { requireAdmin } from "@/app/proxy/auth";
 
 export async function getSpecialPortfolio(portfolio_id: string) {
   const [portfolio] = await db
@@ -80,4 +81,34 @@ export async function updateSpecialHolding(
     .update(specialPortfolioHoldings)
     .set(data)
     .where(eq(specialPortfolioHoldings.id, holding_id));
+}
+
+export async function addSpecialHolding(data: {
+  portfolio_id: string;
+  coin_id: string;
+  amount: string;
+  cost_thb: string;
+  buy_price_thb: string;
+  bought_at: string;
+  note?: string;
+}) {
+  await requireAdmin();
+  const [holding] = await db
+    .insert(specialPortfolioHoldings)
+    .values({
+      portfolio_id: data.portfolio_id,
+      coin_id: data.coin_id,
+      amount: data.amount,
+      cost_thb: data.cost_thb,
+      buy_price_thb: data.buy_price_thb,
+      bought_at: new Date(data.bought_at),
+      note: data.note ?? null,
+    })
+    .returning();
+  return holding;
+}
+
+export async function deleteSpecialHolding(holding_id: string) {
+  await requireAdmin();
+  await db.delete(specialPortfolioHoldings).where(eq(specialPortfolioHoldings.id, holding_id));
 }
