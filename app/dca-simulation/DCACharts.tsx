@@ -53,8 +53,8 @@ export default function DCACharts({ data }: Props) {
                   {yearData.transactions.map((t) => (
                     <tr key={t.date} className="border-t border-[#0F1F55]">
                       <td className="py-2">{t.date}</td>
-                      <td className="py-2">฿{t.price.toLocaleString()}</td>
-                      <td className="py-2">{t.amount}</td>
+                      <td className="py-2">{isFinite(t.price) ? `฿${t.price.toLocaleString()}` : "-"}</td>
+                      <td className="py-2">{isFinite(t.amount) ? t.amount.toFixed(8) : "-"}</td>
                     </tr>
                   ))}
                 </tbody>
