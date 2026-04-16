@@ -50,7 +50,10 @@ export async function GET(req: NextRequest) {
 
         for (const asset of cgAssets) {
           const p = prices[asset.coingecko_id!];
-          if (!p) continue;
+          if (!p || typeof p.usd === 'undefined') {
+            console.warn(`[cron] Price not found for ${asset.symbol} (${asset.coingecko_id})`);
+            continue;
+          }
 
           const priceThb = p.usd * usdtThbRate;
 

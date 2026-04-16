@@ -8,6 +8,8 @@ import { getSpecialPortfolio, getSpecialPriceHistory } from "@/actions/public-po
 import { notFound } from "next/navigation";
 import PublicPortfolioClient from "./public-portfolio-client";
 
+export const revalidate = 60; // revalidate every 60 seconds
+
 export default async function PublicPortfolioPage({ params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;

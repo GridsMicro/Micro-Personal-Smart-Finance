@@ -33,22 +33,75 @@ export async function getSpecialPortfolio(portfolio_id: string) {
     .leftJoin(assets, eq(specialPortfolioHoldings.coin_id, assets.id))
     .where(eq(specialPortfolioHoldings.portfolio_id, portfolio_id));
 
-  // ดึงราคาปัจจุบันของแต่ละ coin
-  const coinIds = [...new Set(holdings.map((h) => h.coin_id))];
+  // ── ดึงราคาแบบ Real-time จาก API ──
+  const assetDetails = await db
+    .select({ id: assets.id, coingecko_id: assets.coingecko_id, symbol: assets.symbol })
+    .from(assets)
+    .where(eq(assets.is_active, true));
+
+  const coinDetailsMap = new Map(assetDetails.map(a => [a.id, a]));
   const currentPrices: Record<string, {
     price_usd: string;
     price_thb: string | null;
     change_24h: string | null;
   }> = {};
 
-  for (const coinId of coinIds) {
-    const [price] = await db
-      .select()
-      .from(marketPrices)
-      .where(eq(marketPrices.asset_id, coinId))
-      .orderBy(desc(marketPrices.last_updated))
-      .limit(1);
-    if (price) currentPrices[coinId] = price;
+  try {
+    // 1. ดึงราคา USD จาก CoinGecko (Cache 30 วิ)
+    const cgIds = assetDetails.filter(a => a.coingecko_id).map(a => a.coingecko_id).join(",");
+    const cgRes = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${cgIds}&vs_currencies=usd&include_24hr_change=true`,
+      { next: { revalidate: 30 } }
+    );
+    const cgData = cgRes.ok ? await cgRes.json() : {};
+ 
+    // 2. ดึงราคา THB จาก Bitkub (Cache 30 วิ)
+    const bitkubRes = await fetch("https://api.bitkub.com/api/market/ticker", { next: { revalidate: 30 } });
+    const bitkubData = bitkubRes.ok ? await bitkubRes.json() : {};
+
+    // 3. รวมราคา
+    for (const asset of assetDetails) {
+      const cg = cgData[asset.coingecko_id ?? ""];
+      const bk = bitkubData[`THB_${asset.symbol}`];
+
+      const priceUsd = cg?.usd?.toString();
+      let priceThb = bk?.last?.toString();
+
+      // ถ้าไม่มีราคาจาก Bitkub ตรงๆ ให้คำนวณจาก USD * USDT_THB rate (ถ้ามี)
+      if (!priceThb && priceUsd && bitkubData["THB_USDT"]) {
+        const usdtThb = Number(bitkubData["THB_USDT"].last);
+        priceThb = (Number(priceUsd) * usdtThb).toFixed(4);
+      }
+
+      if (priceUsd || priceThb) {
+        currentPrices[asset.id] = {
+          price_usd: priceUsd ?? "0",
+          price_thb: priceThb ?? null,
+          change_24h: cg?.usd_24h_change?.toFixed(4) ?? null,
+        };
+      }
+    }
+  } catch (err) {
+    console.error("[getSpecialPortfolio] Live price fetch failed:", err);
+  }
+
+  // Fallback: ถ้า API ล่ม หรือตัวไหนไม่มีราคา ให้ดึงจาก DB
+  for (const coinId of [...new Set(holdings.map((h) => h.coin_id))]) {
+    if (!currentPrices[coinId]) {
+      const [dbPrice] = await db
+        .select()
+        .from(marketPrices)
+        .where(eq(marketPrices.asset_id, coinId))
+        .orderBy(desc(marketPrices.last_updated))
+        .limit(1);
+      if (dbPrice) {
+        currentPrices[coinId] = {
+          price_usd: dbPrice.price_usd,
+          price_thb: dbPrice.price_thb,
+          change_24h: dbPrice.change_24h,
+        };
+      }
+    }
   }
 
   return { portfolio, holdings, currentPrices };

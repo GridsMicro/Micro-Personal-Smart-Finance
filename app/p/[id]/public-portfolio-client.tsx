@@ -5,7 +5,10 @@ import Link from "next/link";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, ArrowLeft } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowLeft, RefreshCw } from "lucide-react";
+import useSWR from "swr";
+ 
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface Holding {
   id: string;
@@ -39,12 +42,19 @@ const COIN_COLORS: Record<string, string> = {
   tron: "#FF0013",
 };
 
-export default function PublicPortfolioClient({ portfolio, holdings, currentPrices, priceHistories }: Props) {
+export default function PublicPortfolioClient({ portfolio, holdings, currentPrices: initialPrices, priceHistories }: Props) {
   const [activeCoin, setActiveCoin] = useState(holdings[0]?.coin_id ?? "");
   const [currency, setCurrency] = useState<"usd" | "thb">("thb");
-
+ 
+  const { data, isValidating } = useSWR(`/api/p/${portfolio.id}/prices`, fetcher, {
+    fallbackData: { success: true, prices: initialPrices },
+    refreshInterval: 60000, // อัปเดตราคาทุก 1 นาที
+  });
+ 
+  const prices = data?.prices ?? initialPrices;
+ 
   const holdingValues = holdings.map((h) => {
-    const price = currentPrices[h.coin_id];
+    const price = prices[h.coin_id];
     const amount = Number(h.amount);
     const priceThb = price?.price_thb ? Number(price.price_thb) : 0;
     const priceUsd = price ? Number(price.price_usd) : 0;
@@ -86,8 +96,8 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
         {/* Header */}
         <div>
           <div className="inline-flex items-center gap-1.5 text-xs text-[#5A6A9A] mb-3 px-2.5 py-1 rounded-full border border-[#0F1F55]">
-            <div className="h-1.5 w-1.5 rounded-full bg-[#00E676] animate-pulse" />
-            Spicial Portfolio
+            <div className={`h-1.5 w-1.5 rounded-full ${isValidating ? "bg-blue-400" : "bg-[#00E676]"} animate-pulse`} />
+            {isValidating ? "กำลังอัปเดตราคา..." : "ราคาล่าสุด (Live)"}
           </div>
           <h1 className="text-3xl font-bold text-white">{portfolio.name}</h1>
           {portfolio.description && <p className="text-sm text-[#A0A0B0] mt-1">{portfolio.description}</p>}
