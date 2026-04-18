@@ -9,8 +9,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { assets, marketPrices } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { assets, marketPrices, specialPortfolio, specialPortfolioHoldings, specialPortfolioSnapshots, cronLogs } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -18,7 +18,70 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Track attemptsMade outside try so we can audit/log in the outer catch
+  let attemptsMade: number | null = null;
+
   try {
+    // ── 0. Aggressive NEON DB warm-up & verification (Ping / Warm up) ──
+    // Try up to 10 times with short delays and require two consecutive successful lightweight queries
+    // before proceeding to any external network calls (Bitkub / CoinGecko). This ensures Neon is awake.
+    const MAX_WAKE_ATTEMPTS = 10;
+    const WAKE_DELAY_MS = 1500; // 1.5 seconds between attempts
+    let isAwake = false;
+    attemptsMade = 0;
+    let lastWakeError: any = null;
+
+    for (let attempt = 1; attempt <= MAX_WAKE_ATTEMPTS; attempt++) {
+      attemptsMade = attempt;
+      try {
+        // First lightweight ping
+        await db.select().from(assets).limit(1);
+        console.log(`[Neon] Wake-up attempt ${attempt}/${MAX_WAKE_ATTEMPTS} - ping OK (first)`);
+
+        // Small verification delay, then second ping to ensure stability
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await db.select().from(assets).limit(1);
+        console.log(`[Neon] Wake-up attempt ${attempt}/${MAX_WAKE_ATTEMPTS} - ping OK (verification)`);
+
+        // Two consecutive pings succeeded -> mark healthy and proceed
+        isAwake = true;
+        break;
+      } catch (err) {
+        lastWakeError = err;
+        console.log(`[Neon] Wake-up attempt ${attempt}/${MAX_WAKE_ATTEMPTS} failed: ${String(err)}`);
+        if (attempt < MAX_WAKE_ATTEMPTS) {
+          await new Promise((resolve) => setTimeout(resolve, WAKE_DELAY_MS));
+        }
+      }
+    }
+
+    // Log warm-up outcome (attempts and success/failure) so we have an audit trail
+    try {
+      if (isAwake) {
+        await db.insert(cronLogs).values({
+          job: 'record-prices',
+          attempts: attemptsMade,
+          success: true,
+          message: `Success on attempt ${attemptsMade}`,
+          payload: null,
+        });
+      } else {
+        await db.insert(cronLogs).values({
+          job: 'record-prices',
+          attempts: attemptsMade,
+          success: false,
+          message: String(lastWakeError) || '[Neon] Database did not wake after max wake attempts',
+          payload: null,
+        });
+      }
+    } catch (logErr) {
+      console.error('[cron] Failed to write cron_logs entry:', logErr);
+    }
+
+    if (!isAwake) {
+      return NextResponse.json({ error: "[Neon] Database did not wake after max wake attempts — aborting snapshot process" }, { status: 500 });
+    }
+
     const activeAssets = await db
       .select()
       .from(assets)
@@ -26,12 +89,16 @@ export async function GET(req: NextRequest) {
 
     const records: { asset: string; price_usd: number; price_thb: number; source: string }[] = [];
 
-    // ── 1. ดึง USDT/THB จาก Bitkub ก่อน (ใช้เป็น exchange rate) ──
+    // เวลาปัจจุบัน +7 ชั่วโมง (เวลาไทย ประเทศไทย)
+    const nowThai = new Date(Date.now() + 7 * 60 * 60 * 1000);
+
+    // ── 1. ดึงราคาทั้งหมดจาก Bitkub ก่อน (ใช้เป็น exchange rate และใช้เป็นราคา THB ตรงๆ ถ้ามี) ──
     let usdtThbRate = 34.5; // fallback
+    let bitkubData: any = {};
     try {
-      const bitkubRes = await fetch("https://api.bitkub.com/api/market/ticker?sym=THB_USDT");
+      const bitkubRes = await fetch("https://api.bitkub.com/api/market/ticker");
       if (bitkubRes.ok) {
-        const bitkubData = await bitkubRes.json();
+        bitkubData = await bitkubRes.json();
         usdtThbRate = bitkubData?.THB_USDT?.last ?? usdtThbRate;
       }
     } catch { /* ใช้ fallback */ }
@@ -55,7 +122,15 @@ export async function GET(req: NextRequest) {
             continue;
           }
 
-          const priceThb = p.usd * usdtThbRate;
+          let priceThb = p.usd * usdtThbRate;
+
+          // แบบเดียวกับ public-portfolio: ถ้ามีราคา THB จาก Bitkub ตรงๆ (เช่น TRX, BTC) ให้ใช้ค่านั้นเป็นหลัก
+          const expectedSymbol = asset.symbol?.toUpperCase();
+          const bkPrice = expectedSymbol ? bitkubData[`THB_${expectedSymbol}`]?.last : undefined;
+          
+          if (bkPrice) {
+            priceThb = Number(bkPrice);
+          }
 
           await db.insert(marketPrices).values({
             asset_id: asset.id,
@@ -64,7 +139,7 @@ export async function GET(req: NextRequest) {
             change_24h: p.usd_24h_change?.toFixed(4) ?? null,
             volume_24h: p.usd_24h_vol?.toFixed(2) ?? null,
             market_cap: p.usd_market_cap?.toFixed(2) ?? null,
-            last_updated: new Date(),
+            last_updated: nowThai,
           });
 
           records.push({ asset: asset.symbol, price_usd: p.usd, price_thb: priceThb, source: "coingecko" });
@@ -72,7 +147,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ── 3. บันทึก USDT/THB rate จาก Bitkub ──
+    // ── 3. บันทึกราคาจาก Bitkub (กรณีข้อมูลเป็น source bitkub โดยเฉพาะ) ──
     const bitkubAssets = activeAssets.filter((a) => a.price_source === "bitkub");
     for (const asset of bitkubAssets) {
       let priceUsd = 0;
@@ -84,6 +159,13 @@ export async function GET(req: NextRequest) {
       } else if (asset.symbol === "THB") {
         priceUsd = 1 / usdtThbRate;
         priceThb = 1;
+      } else {
+        const expectedSymbol = asset.symbol?.toUpperCase();
+        const bkPrice = expectedSymbol ? bitkubData[`THB_${expectedSymbol}`]?.last : undefined;
+        if (bkPrice) {
+          priceThb = Number(bkPrice);
+          priceUsd = priceThb / usdtThbRate;
+        }
       }
 
       await db.insert(marketPrices).values({
@@ -91,7 +173,7 @@ export async function GET(req: NextRequest) {
         price_usd: priceUsd.toFixed(8),
         price_thb: priceThb.toFixed(4),
         change_24h: null,
-        last_updated: new Date(),
+        last_updated: nowThai,
       });
 
       records.push({ asset: asset.symbol, price_usd: priceUsd, price_thb: priceThb, source: "bitkub" });
@@ -99,15 +181,105 @@ export async function GET(req: NextRequest) {
 
     console.log(`[cron] Recorded ${records.length} prices | USDT/THB rate: ${usdtThbRate}`);
 
+    // ── 4. Special Portfolio snapshot (Bitkub TradingView historical closes) ──
+    try {
+      const SP_ID = 'a0000000-0000-0000-0000-000000000001';
+      const [sp] = await db.select().from(specialPortfolio).where(eq(specialPortfolio.id, SP_ID)).limit(1);
+      if (sp) {
+        const holdings = await db.select().from(specialPortfolioHoldings).where(eq(specialPortfolioHoldings.portfolio_id, SP_ID));
+        if (holdings && holdings.length) {
+          const pairsNeeded: string[] = [];
+          const symbolMap: Record<string, { holdingId: string; amount: number; coinId: string }> = {};
+          for (const h of holdings) {
+            const assetRow = await db.select().from(assets).where(eq(assets.id, h.coin_id)).limit(1);
+            const symbol = assetRow[0]?.symbol?.toUpperCase();
+            if (!symbol) continue;
+            const pair = `${symbol}_THB`;
+            if (!pairsNeeded.includes(pair)) pairsNeeded.push(pair);
+            symbolMap[symbol] = { holdingId: h.id, amount: Number(h.amount), coinId: h.coin_id };
+          }
+
+          const priceByPairDate: Record<string, Record<string, number>> = {};
+          const nowSec = Math.floor(Date.now() / 1000);
+          const fromSec = 1774972800;
+          for (const pair of pairsNeeded) {
+            const url = `https://api.bitkub.com/tradingview/history?symbol=${pair}&resolution=1D&from=${fromSec}&to=${nowSec}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`TradingView history fetch failed for ${pair} status=${res.status}`);
+            const json = await res.json();
+            const ts: number[] = Array.isArray(json.t) ? json.t : [];
+            const closes: number[] = Array.isArray(json.c) ? json.c : [];
+            priceByPairDate[pair] = {};
+            const len = Math.min(ts.length, closes.length);
+            for (let i = 0; i < len; i++) {
+              const date = new Date(ts[i] * 1000).toISOString().slice(0,10);
+              priceByPairDate[pair][date] = Number(closes[i]);
+            }
+          }
+
+          const nowThai = new Date(Date.now() + 7 * 60 * 60 * 1000);
+          const dateKey = nowThai.toISOString().slice(0,10);
+          const snapshotHoldings: any[] = [];
+          let totalValueThb = 0;
+          for (const [sym, meta] of Object.entries(symbolMap)) {
+            const pair = `${sym}_THB`;
+            const price = priceByPairDate[pair]?.[dateKey];
+            if (typeof price === 'undefined') {
+              console.warn(`[cron] Missing TradingView close for ${pair} on ${dateKey}`);
+              continue;
+            }
+            const amount = meta.amount;
+            const value = amount * price;
+            totalValueThb += value;
+            snapshotHoldings.push({ holding_id: meta.holdingId, coin_id: meta.coinId, amount, price_thb: price, value_thb: value });
+          }
+
+          // Upsert the daily special snapshot using Drizzle
+          await db.delete(specialPortfolioSnapshots).where(sql`portfolio_id = ${SP_ID} AND recorded_at::date = ${dateKey}::date`);
+          await db.insert(specialPortfolioSnapshots).values({
+            portfolio_id: SP_ID,
+            snapshot_data: JSON.stringify({ date: dateKey, holdings: snapshotHoldings }),
+            total_value_thb: totalValueThb.toFixed(6),
+            recorded_at: nowThai,
+          });
+          console.log(`[cron] Upserted special_portfolio_snapshots for ${dateKey} total THB=${totalValueThb.toFixed(6)}`);
+        }
+      }
+    } catch (err) {
+      console.warn('[cron] Special portfolio snapshot failed:', err);
+      try {
+        await db.insert(cronLogs).values({
+          job: 'record-prices',
+          attempts: attemptsMade || 0,
+          success: false,
+          message: `special_portfolio snapshot failed: ${String(err)}`,
+          payload: null,
+        });
+      } catch (logErr) {
+        console.error('[cron] Failed to write cron_logs entry after snapshot failure:', logErr);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       recorded: records.length,
       usdt_thb_rate: usdtThbRate,
-      timestamp: new Date().toISOString(),
+      timestamp: nowThai.toISOString(),
       prices: records,
     });
   } catch (err) {
     console.error("[cron] Error:", err);
+    try {
+      await db.insert(cronLogs).values({
+        job: 'record-prices',
+        attempts: typeof attemptsMade === 'number' ? attemptsMade : 0,
+        success: false,
+        message: String(err),
+        payload: null,
+      });
+    } catch (logErr) {
+      console.error('[cron] Failed to write cron_logs entry in global catch:', logErr);
+    }
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

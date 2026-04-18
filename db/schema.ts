@@ -1,4 +1,5 @@
 import { pgTable, varchar, text, timestamp, integer, boolean, jsonb, primaryKey, numeric, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const mcUser = pgTable("mc_user", {
   id: text("id").primaryKey(),
@@ -219,6 +220,30 @@ export const specialPortfolioHoldings = pgTable("special_portfolio_holdings", {
   buy_price_thb: numeric("buy_price_thb", { precision: 36, scale: 18 }),
   bought_at: timestamp("bought_at").notNull(),
   note: text("note"),
+});
+
+export const specialPortfolioSnapshots = pgTable("special_portfolio_snapshots", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  portfolio_id: uuid("portfolio_id").notNull().references(() => specialPortfolio.id, { onDelete: "cascade" }),
+  snapshot_data: jsonb("snapshot_data").notNull(),
+  // Per-day explicit prices for primary assets in the special portfolio
+  btc_price_thb: numeric("btc_price_thb", { precision: 36, scale: 18 }),
+  trx_price_thb: numeric("trx_price_thb", { precision: 36, scale: 18 }),
+  // Total portfolio value (explicit decimal field) — kept for compatibility
+  total_value_thb: numeric("total_value_thb", { precision: 36, scale: 18 }),
+  // New canonical total field requested by product owners
+  total_thb: numeric("total_thb", { precision: 36, scale: 18 }),
+  recorded_at: timestamp("recorded_at").defaultNow(),
+});
+
+export const cronLogs = pgTable("cron_logs", {
+  id: integer("id").primaryKey().default(sql`nextval('public.cron_logs_id_seq')`),
+  job: varchar("job", { length: 255 }).notNull(),
+  attempts: integer("attempts").notNull(),
+  success: boolean("success").notNull(),
+  message: text("message"),
+  payload: jsonb("payload"),
+  created_at: timestamp("created_at").defaultNow(),
 });
 
 export type User = typeof mcUser.$inferSelect;
