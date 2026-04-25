@@ -4,6 +4,19 @@ import { db } from "@/lib/db";
 import { specialPortfolio, specialPortfolioHoldings, assets, marketPrices, specialPortfolioSnapshots } from "@/db/schema";
 import { eq, desc, gte, asc, and } from "drizzle-orm";
 import { requireAdmin } from "@/app/proxy/auth";
+import { readSnapshotsFromCache, saveSnapshotsToCache } from "@/lib/snapshot-cache";
+import { sql as drizzleSql } from "drizzle-orm";
+
+export async function checkDatabaseHealth() {
+  try {
+    // Try a very simple query to check connection
+    await db.execute(drizzleSql`SELECT 1`);
+    return { is_healthy: true, message: "Database is connected", timestamp: new Date().toISOString() };
+  } catch (error) {
+    console.error("[HealthCheck] Database connection failed:", error);
+    return { is_healthy: false, message: "Database is disconnected", timestamp: new Date().toISOString() };
+  }
+}
 
 export async function getSpecialPortfolio(portfolio_id: string) {
   const [portfolio] = await db
@@ -87,10 +100,10 @@ export async function getSpecialPortfolio(portfolio_id: string) {
     console.error("[getSpecialPortfolio] Live price fetch failed:", err);
   }
 
-  // Fallback: ถ้า API ล่ม หรือตัวไหนไม่มีราคา ให้ดึงจาก DB
+  // Fallback: ถ้า API ล่ม หรือตัวไหนไม่มีราคา (โดยเฉพาะ price_thb) ให้ดึงจาก DB
   for (const rawCoinId of [...new Set(holdings.map((h) => h.coin_id))]) {
     const coinId = rawCoinId?.toString().trim();
-    if (!currentPrices[coinId]) {
+    if (!currentPrices[coinId] || !currentPrices[coinId].price_thb) {
       // Try DB fallback
       const [dbPrice] = await db
         .select()
@@ -98,18 +111,21 @@ export async function getSpecialPortfolio(portfolio_id: string) {
         .where(eq(marketPrices.asset_id, coinId))
         .orderBy(desc(marketPrices.last_updated))
         .limit(1);
+      
       if (dbPrice) {
-        // Log for debugging missing live price — helpful to see if TRX falls back correctly
-        // eslint-disable-next-line no-console
-        console.log(`[getSpecialPortfolio] Fallback DB price for ${coinId}:`, { price_thb: dbPrice.price_thb, last_updated: dbPrice.last_updated });
-        currentPrices[coinId] = {
-          price_usd: dbPrice.price_usd,
-          price_thb: dbPrice.price_thb,
-          change_24h: dbPrice.change_24h,
-        };
-      } else {
-        // eslint-disable-next-line no-console
-        console.log(`[getSpecialPortfolio] No price available for ${coinId} (live or DB)`);
+        if (!currentPrices[coinId]) {
+          currentPrices[coinId] = {
+            price_usd: dbPrice.price_usd,
+            price_thb: dbPrice.price_thb,
+            change_24h: dbPrice.change_24h,
+          };
+        } else {
+          // If we already have some data (like price_usd) but missing price_thb, just fill it
+          currentPrices[coinId].price_thb = dbPrice.price_thb;
+          if (currentPrices[coinId].price_usd === "0") {
+            currentPrices[coinId].price_usd = dbPrice.price_usd;
+          }
+        }
       }
     }
   }
@@ -188,14 +204,27 @@ export async function getSpecialPriceHistory(asset_id: string, days = 90) {
 export async function getSpecialPortfolioSnapshots(portfolio_id: string) {
   // Always fetch from 2026-04-01 to today for the special portfolio view
   const since = new Date("2026-04-01T00:00:00.000Z");
-  const rows = await db
-    .select()
-    .from(specialPortfolioSnapshots)
-    .where(and(eq(specialPortfolioSnapshots.portfolio_id, portfolio_id), gte(specialPortfolioSnapshots.recorded_at, since)))
-    .orderBy(asc(specialPortfolioSnapshots.recorded_at));
+  let rows: any[] = [];
+  let isFromCache = false;
+
+  try {
+    rows = await db
+      .select()
+      .from(specialPortfolioSnapshots)
+      .where(and(eq(specialPortfolioSnapshots.portfolio_id, portfolio_id), gte(specialPortfolioSnapshots.recorded_at, since)))
+      .orderBy(asc(specialPortfolioSnapshots.recorded_at));
+  } catch (dbError) {
+    console.error("[getSpecialPortfolioSnapshots] Database connection failed, falling back to file cache:", dbError);
+    const cachedData = await readSnapshotsFromCache();
+    if (cachedData.length > 0) {
+      return cachedData;
+    }
+    throw dbError; // No cache and no DB, rethrow
+  }
 
   // Map to date-ascending daily points using canonical fields.
   // Prefer `total_thb` (canonical total) but fall back to `total_value_thb` for compatibility.
+  // If both are 0, try to calculate from snapshot_data holdings.
   const out: { snapshot_date: string; total_value_thb: number; btc_price_thb?: number | null; trx_price_thb?: number | null }[] = [];
   const seen = new Set<string>();
   for (const r of rows) {
@@ -203,13 +232,34 @@ export async function getSpecialPortfolioSnapshots(portfolio_id: string) {
     const snapshot_date = new Date(r.recorded_at).toISOString().slice(0, 10);
     if (!seen.has(snapshot_date)) {
       seen.add(snapshot_date);
+      
+      let total = Number(r.total_thb ?? r.total_value_thb ?? 0);
+      
+      // If total is 0, attempt to sum from snapshot_data
+      if (total === 0 && r.snapshot_data) {
+        try {
+          const sd = typeof r.snapshot_data === 'string' ? JSON.parse(r.snapshot_data) : r.snapshot_data;
+          if (sd && Array.isArray(sd.holdings)) {
+            total = sd.holdings.reduce((sum: number, h: any) => sum + Number(h.value_thb || 0), 0);
+          }
+        } catch (e) {
+          console.error(`[getSpecialPortfolioSnapshots] Failed to parse snapshot_data for ${snapshot_date}:`, e);
+        }
+      }
+
       out.push({
         snapshot_date,
-        total_value_thb: Number(r.total_thb ?? r.total_value_thb ?? 0),
+        total_value_thb: total,
         btc_price_thb: r.btc_price_thb ? Number(r.btc_price_thb) : null,
         trx_price_thb: r.trx_price_thb ? Number(r.trx_price_thb) : null,
       });
     }
+  }
+
+  // Update file cache if DB was successful
+  if (out.length > 0) {
+    // Fire and forget cache update
+    saveSnapshotsToCache(out as any).catch(err => console.error("[getSpecialPortfolioSnapshots] Failed to update cache file:", err));
   }
 
   return out;

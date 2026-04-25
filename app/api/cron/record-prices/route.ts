@@ -10,7 +10,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { assets, marketPrices, specialPortfolio, specialPortfolioHoldings, specialPortfolioSnapshots, cronLogs } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, asc, gte, and } from "drizzle-orm";
+import { saveSnapshotsToCache } from "@/lib/snapshot-cache";
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -236,13 +237,60 @@ export async function GET(req: NextRequest) {
 
           // Upsert the daily special snapshot using Drizzle
           await db.delete(specialPortfolioSnapshots).where(sql`portfolio_id = ${SP_ID} AND recorded_at::date = ${dateKey}::date`);
+          
+          const btcPrice = snapshotHoldings.find(h => h.coin_id === 'bitcoin')?.price_thb;
+          const trxPrice = snapshotHoldings.find(h => h.coin_id === 'tron')?.price_thb;
+
           await db.insert(specialPortfolioSnapshots).values({
             portfolio_id: SP_ID,
             snapshot_data: JSON.stringify({ date: dateKey, holdings: snapshotHoldings }),
             total_value_thb: totalValueThb.toFixed(6),
+            total_thb: totalValueThb.toFixed(6),
+            btc_price_thb: btcPrice ? btcPrice.toString() : null,
+            trx_price_thb: trxPrice ? trxPrice.toString() : null,
             recorded_at: nowThai,
           });
           console.log(`[cron] Upserted special_portfolio_snapshots for ${dateKey} total THB=${totalValueThb.toFixed(6)}`);
+
+          // ── Update File Cache after DB Insert ──
+          try {
+            const since = new Date("2026-04-01T00:00:00.000Z");
+            const allRows = await db
+              .select()
+              .from(specialPortfolioSnapshots)
+              .where(and(eq(specialPortfolioSnapshots.portfolio_id, SP_ID), gte(specialPortfolioSnapshots.recorded_at, since)))
+              .orderBy(asc(specialPortfolioSnapshots.recorded_at));
+
+            const cacheData = [];
+            const seen = new Set<string>();
+            for (const r of allRows) {
+              if (!r.recorded_at) continue;
+              const snapshot_date = new Date(r.recorded_at).toISOString().slice(0, 10);
+              if (!seen.has(snapshot_date)) {
+                seen.add(snapshot_date);
+                let total = Number(r.total_thb ?? r.total_value_thb ?? 0);
+                if (total === 0 && r.snapshot_data) {
+                  try {
+                    const sd = typeof r.snapshot_data === 'string' ? JSON.parse(r.snapshot_data) : r.snapshot_data;
+                    if (sd && Array.isArray(sd.holdings)) {
+                      total = sd.holdings.reduce((sum: number, h: any) => sum + Number(h.value_thb || 0), 0);
+                    }
+                  } catch {}
+                }
+                cacheData.push({
+                  snapshot_date,
+                  total_value_thb: total,
+                  btc_price_thb: r.btc_price_thb ? Number(r.btc_price_thb) : null,
+                  trx_price_thb: r.trx_price_thb ? Number(r.trx_price_thb) : null,
+                });
+              }
+            }
+            if (cacheData.length > 0) {
+              await saveSnapshotsToCache(cacheData);
+            }
+          } catch (cacheErr) {
+            console.error("[cron] Failed to update file cache:", cacheErr);
+          }
         }
       }
     } catch (err) {

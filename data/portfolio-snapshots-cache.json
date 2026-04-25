@@ -1,0 +1,152 @@
+[
+  {
+    "snapshot_date": "2026-04-01",
+    "total_value_thb": 100481.879401,
+    "btc_price_thb": 2236724.54,
+    "trx_price_thb": 10.27
+  },
+  {
+    "snapshot_date": "2026-04-02",
+    "total_value_thb": 99429.36661,
+    "btc_price_thb": 2190591.26,
+    "trx_price_thb": 10.27
+  },
+  {
+    "snapshot_date": "2026-04-03",
+    "total_value_thb": 99313.485274,
+    "btc_price_thb": 2185512,
+    "trx_price_thb": 10.27
+  },
+  {
+    "snapshot_date": "2026-04-04",
+    "total_value_thb": 99864.490213,
+    "btc_price_thb": 2197000,
+    "trx_price_thb": 10.33
+  },
+  {
+    "snapshot_date": "2026-04-05",
+    "total_value_thb": 100394.159828,
+    "btc_price_thb": 2197000,
+    "trx_price_thb": 10.44
+  },
+  {
+    "snapshot_date": "2026-04-06",
+    "total_value_thb": 101344.38901,
+    "btc_price_thb": 2268197.98,
+    "trx_price_thb": 10.3
+  },
+  {
+    "snapshot_date": "2026-04-07",
+    "total_value_thb": 100123.336722,
+    "btc_price_thb": 2225230.19,
+    "trx_price_thb": 10.25
+  },
+  {
+    "snapshot_date": "2026-04-08",
+    "total_value_thb": 101317.245222,
+    "btc_price_thb": 2292335.04,
+    "trx_price_thb": 10.18
+  },
+  {
+    "snapshot_date": "2026-04-09",
+    "total_value_thb": 101577.943207,
+    "btc_price_thb": 2303761.84,
+    "trx_price_thb": 10.18
+  },
+  {
+    "snapshot_date": "2026-04-10",
+    "total_value_thb": 102501.653691,
+    "btc_price_thb": 2337917.81,
+    "trx_price_thb": 10.21
+  },
+  {
+    "snapshot_date": "2026-04-11",
+    "total_value_thb": 102658.392067,
+    "btc_price_thb": 2342677.33,
+    "trx_price_thb": 10.22
+  },
+  {
+    "snapshot_date": "2026-04-12",
+    "total_value_thb": 102130.684299,
+    "btc_price_thb": 2283667.42,
+    "trx_price_thb": 10.39
+  },
+  {
+    "snapshot_date": "2026-04-13",
+    "total_value_thb": 102661.798407,
+    "btc_price_thb": 2328052.66,
+    "trx_price_thb": 10.29
+  },
+  {
+    "snapshot_date": "2026-04-14",
+    "total_value_thb": 104145.423093,
+    "btc_price_thb": 2390971.68,
+    "trx_price_thb": 10.3
+  },
+  {
+    "snapshot_date": "2026-04-15",
+    "total_value_thb": 104487.32448,
+    "btc_price_thb": 2367967.53,
+    "trx_price_thb": 10.48
+  },
+  {
+    "snapshot_date": "2026-04-16",
+    "total_value_thb": 104591.964926,
+    "btc_price_thb": 2376775.22,
+    "trx_price_thb": 10.46
+  },
+  {
+    "snapshot_date": "2026-04-17",
+    "total_value_thb": 106450.271517,
+    "btc_price_thb": 2479333.38,
+    "trx_price_thb": 10.36
+  },
+  {
+    "snapshot_date": "2026-04-18",
+    "total_value_thb": 106498.366391,
+    "btc_price_thb": 2435008.96,
+    "trx_price_thb": 10.58
+  },
+  {
+    "snapshot_date": "2026-04-19",
+    "total_value_thb": 107215.282053,
+    "btc_price_thb": 2420000,
+    "trx_price_thb": 10.8
+  },
+  {
+    "snapshot_date": "2026-04-20",
+    "total_value_thb": 105528.177181,
+    "btc_price_thb": 2413589.73,
+    "trx_price_thb": 10.48
+  },
+  {
+    "snapshot_date": "2026-04-21",
+    "total_value_thb": 107141.995896,
+    "btc_price_thb": 2440004,
+    "trx_price_thb": 10.69
+  },
+  {
+    "snapshot_date": "2026-04-22",
+    "total_value_thb": 108569.188863,
+    "btc_price_thb": 2529997.48,
+    "trx_price_thb": 10.56
+  },
+  {
+    "snapshot_date": "2026-04-23",
+    "total_value_thb": 109032.994705,
+    "btc_price_thb": 2525000,
+    "trx_price_thb": 10.68
+  },
+  {
+    "snapshot_date": "2026-04-24",
+    "total_value_thb": 107719.455318,
+    "btc_price_thb": 2513858.01,
+    "trx_price_thb": 10.46
+  },
+  {
+    "snapshot_date": "2026-04-25",
+    "total_value_thb": 107193.863489,
+    "btc_price_thb": 2509815.61,
+    "trx_price_thb": 10.37
+  }
+]

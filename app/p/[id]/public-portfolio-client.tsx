@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, ArrowLeft, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowLeft, RefreshCw, Database, CheckCircle, XCircle } from "lucide-react";
 import useSWR from "swr";
+import { checkDatabaseHealth } from "@/actions/public-portfolio";
  
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -52,7 +53,29 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
     return holdings[0]?.coin_id ?? "";
   });
   const [currency, setCurrency] = useState<"usd" | "thb">("thb");
- 
+  const [dbHealth, setDbHealth] = useState<{ is_healthy: boolean | null; message: string; timestamp: string }>({
+    is_healthy: null,
+    message: "กำลังตรวจสอบ...",
+    timestamp: "",
+  });
+  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+
+  const handleCheckHealth = async () => {
+    setIsCheckingHealth(true);
+    try {
+      const result = await checkDatabaseHealth();
+      setDbHealth(result);
+    } catch (err) {
+      setDbHealth({ is_healthy: false, message: "เชื่อมต่อไม่ได้", timestamp: new Date().toISOString() });
+    } finally {
+      setIsCheckingHealth(false);
+    }
+  };
+
+  useEffect(() => {
+    handleCheckHealth();
+  }, []);
+
   const { data, isValidating } = useSWR(`/api/p/${portfolio.id}/prices`, fetcher, {
     fallbackData: { success: true, prices: initialPrices },
     refreshInterval: 60000, // อัปเดตราคาทุก 1 นาที
@@ -81,23 +104,39 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
 
   const chartData = priceHistories[activeCoin] ?? [];
   // Use exact field names from snapshots: snapshot_date and total_value_thb
-  const portfolioChartData = (portfolioSnapshots ?? []).map((p) => ({ date: p.snapshot_date, price_thb: p.total_value_thb }));
+  let portfolioChartData = (portfolioSnapshots ?? []).map((p) => ({ date: p.snapshot_date, price_thb: p.total_value_thb }));
 
-  // Log the length to verify data source (must be at least 18)
-  // eslint-disable-next-line no-console
-  console.log("portfolioSnapshots.length:", (portfolioSnapshots ?? []).length);
+  // Append live data as the latest point if today is missing or if we want real-time update
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const lastSnapshot = portfolioChartData[portfolioChartData.length - 1];
+  
+  if (!lastSnapshot || lastSnapshot.date !== todayStr) {
+    portfolioChartData.push({ date: todayStr, price_thb: totalValueThb });
+  } else {
+    // Update today's point with live value
+    portfolioChartData[portfolioChartData.length - 1].price_thb = totalValueThb;
+  }
 
   // If an asset is selected, merge asset series onto the snapshot dates and fallback to snapshot value for missing days
   let mergedAssetOnSnapshots: { date: string; price_thb: number | null }[] = [];
   if (activeCoin) {
-    // If active coin is BTC or TRX, prefer per-day prices from snapshots table (btc_price_thb/trx_price_thb)
     const held = holdings.find((h) => h.coin_id === activeCoin);
     const symbol = held?.asset_symbol?.toUpperCase() ?? "";
+    const currentAssetPrice = prices[activeCoin]?.price_thb ? Number(prices[activeCoin].price_thb) : 0;
+
     if (symbol === "BTC" || symbol === "TRX") {
       mergedAssetOnSnapshots = (portfolioSnapshots ?? []).map((p) => ({
         date: p.snapshot_date,
         price_thb: symbol === "BTC" ? (p.btc_price_thb ?? null) : (p.trx_price_thb ?? null),
       }));
+
+      // Append live asset price for today
+      if (!lastSnapshot || lastSnapshot.date !== todayStr) {
+        mergedAssetOnSnapshots.push({ date: todayStr, price_thb: currentAssetPrice });
+      } else {
+        mergedAssetOnSnapshots[mergedAssetOnSnapshots.length - 1].price_thb = currentAssetPrice;
+      }
+
       // forward-fill nulls to ensure continuous line
       let last: number | null = null;
       mergedAssetOnSnapshots = mergedAssetOnSnapshots.map((pt) => {
@@ -113,10 +152,13 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
       for (const a of chartData) {
         assetMap.set(a.date, a.price_thb ?? 0);
       }
-      mergedAssetOnSnapshots = (portfolioSnapshots ?? []).map((p) => {
-        const d = p.snapshot_date;
+      
+      mergedAssetOnSnapshots = portfolioChartData.map((p) => {
+        const d = p.date;
         const assetPrice = assetMap.get(d);
-        return { date: d, price_thb: assetPrice ?? p.total_value_thb };
+        // If it's today and we have live price, use it
+        if (d === todayStr && currentAssetPrice > 0) return { date: d, price_thb: currentAssetPrice };
+        return { date: d, price_thb: assetPrice ?? p.price_thb };
       });
     }
   }
@@ -133,6 +175,27 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
             <span className="font-bold text-white text-[15px]">Micro Finance</span>
           </Link>
           <div className="flex items-center gap-2">
+            <button 
+              onClick={handleCheckHealth}
+              disabled={isCheckingHealth}
+              className={`flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-semibold transition-all border ${
+                dbHealth.is_healthy === true 
+                  ? "border-[#00E676]/30 bg-[#00E676]/10 text-[#00E676]" 
+                  : dbHealth.is_healthy === false 
+                  ? "border-[#FF5252]/30 bg-[#FF5252]/10 text-[#FF5252]"
+                  : "border-[#0F1F55] text-[#A0A0B0]"
+              } hover:brightness-110`}
+              title={`Last check: ${dbHealth.timestamp}`}
+            >
+              <Database className={`h-3.5 w-3.5 ${isCheckingHealth ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">DB Status:</span>
+              {dbHealth.is_healthy === true ? (
+                <CheckCircle className="h-3 w-3" />
+              ) : dbHealth.is_healthy === false ? (
+                <XCircle className="h-3 w-3" />
+              ) : null}
+              <span>{dbHealth.is_healthy === true ? "Online" : dbHealth.is_healthy === false ? "Offline" : "Checking..."}</span>
+            </button>
             <button onClick={() => setCurrency("thb")} className={`h-8 px-3 rounded-lg text-xs font-semibold transition-all ${currency === "thb" ? "bg-[#00D4FF] text-black" : "border border-[#0F1F55] text-[#A0A0B0] hover:bg-[#0A1845]"}`}>THB</button>
             <button onClick={() => setCurrency("usd")} className={`h-8 px-3 rounded-lg text-xs font-semibold transition-all ${currency === "usd" ? "bg-[#00D4FF] text-black" : "border border-[#0F1F55] text-[#A0A0B0] hover:bg-[#0A1845]"}`}>USD</button>
           </div>

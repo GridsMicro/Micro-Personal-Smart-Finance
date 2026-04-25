@@ -246,6 +246,47 @@ export const cronLogs = pgTable("cron_logs", {
   created_at: timestamp("created_at").defaultNow(),
 });
 
+// ============================================
+// MARKET COMPARISON & ANALYSIS
+// ============================================
+
+export const marketComparison = pgTable("market_comparison", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  asset_id: varchar("asset_id", { length: 100 }).notNull().references(() => assets.id),
+  symbol: varchar("symbol", { length: 20 }).notNull(),
+  
+  // Prices from different sources
+  bitkub_price_thb: numeric("bitkub_price_thb", { precision: 36, scale: 18 }),
+  binance_price_usd: numeric("binance_price_usd", { precision: 36, scale: 18 }),
+  okx_price_usd: numeric("okx_price_usd", { precision: 36, scale: 18 }),
+  
+  // Computed values
+  avg_price_usd: numeric("avg_price_usd", { precision: 36, scale: 18 }),
+  spread_percentage: numeric("spread_percentage", { precision: 10, scale: 5 }), // Gap between highest and lowest
+  
+  // Analysis
+  recommendation: varchar("recommendation", { length: 50 }), // BUY, SELL, HOLD, ARBITRAGE
+  analysis_note: text("analysis_note"),
+  
+  recorded_at: timestamp("recorded_at").defaultNow(),
+});
+
+export const exchangeRates = pgTable("exchange_rates", {
+  id: varchar("id", { length: 20 }).primaryKey(), // e.g., "USD_THB"
+  rate: numeric("rate", { precision: 36, scale: 18 }).notNull(),
+  source: varchar("source", { length: 50 }).default("bot"), // Bank of Thailand or other
+  last_updated: timestamp("last_updated").defaultNow(),
+});
+
+export const tradingviewSignals = pgTable("tradingview_signals", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  symbol: varchar("symbol", { length: 20 }).notNull(),
+  interval: varchar("interval", { length: 10 }).notNull(), // 1m, 5m, 1h, 1d
+  signal: varchar("signal", { length: 20 }).notNull(), // STRONG_BUY, BUY, NEUTRAL, SELL, STRONG_SELL
+  indicator_data: jsonb("indicator_data"), // RSI, MACD, EMA values
+  recorded_at: timestamp("recorded_at").defaultNow(),
+});
+
 export type User = typeof mcUser.$inferSelect;
 export type Portfolio = typeof mcPortfolios.$inferSelect;
 export type Asset = typeof assets.$inferSelect;

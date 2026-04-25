@@ -52,7 +52,7 @@ async function run() {
   await wakeDb(5);
 
   const start = new Date(Date.UTC(2026, 3, 1)); // April 1, 2026 UTC
-  const end = new Date(Date.UTC(2026, 3, 18)); // up to April 18 (inclusive)
+  const end = new Date(); // sync up to today
   const dates = datesBetween(start, end);
 
   // Load special portfolio
@@ -170,7 +170,7 @@ async function run() {
 
   console.log('--- Re-sync Summary ---');
   console.log('Base (2026-04-01):', baseVal);
-  console.log('Current (2026-04-18):', currentVal);
+  console.log('Current:', currentVal);
   if (baseVal && currentVal) {
     const gain = (Number(currentVal) - Number(baseVal)) / Number(baseVal) * 100;
     console.log('Percentage change:', gain.toFixed(2) + '%');
