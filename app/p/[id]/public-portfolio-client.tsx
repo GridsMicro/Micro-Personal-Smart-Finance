@@ -82,6 +82,8 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
   });
  
   const prices = data?.prices ?? initialPrices;
+  const exchangeRate = data?.exchange_rate?.usd_to_thb ?? null;
+  const lastUpdated = data?.last_updated ?? null;
  
   const holdingValues = holdings.map((h) => {
     const price = prices[h.coin_id];
@@ -211,6 +213,24 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
           </div>
           <h1 className="text-3xl font-bold text-white">{portfolio.name}</h1>
           {portfolio.description && <p className="text-sm text-[#A0A0B0] mt-1">{portfolio.description}</p>}
+          
+          {/* Exchange Rate & Last Updated */}
+          {(exchangeRate || lastUpdated) && (
+            <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#A0A0B0]">
+              {exchangeRate && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#0A1845] border border-[#0F1F55]">
+                  <span className="text-[#00D4FF]">📊</span>
+                  <span>USD/THB: <span className="font-semibold text-white">{exchangeRate.toFixed(2)}</span> <span className="text-[#5A6A9A]">(Binance)</span></span>
+                </div>
+              )}
+              {lastUpdated && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#0A1845] border border-[#0F1F55]">
+                  <span>🕒</span>
+                  <span>อัปเดท: <span className="font-semibold text-white">{new Date(lastUpdated).toLocaleTimeString("th-TH")}</span></span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Summary */}
