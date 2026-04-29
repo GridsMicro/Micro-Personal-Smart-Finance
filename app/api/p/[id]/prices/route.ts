@@ -1,22 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSpecialPortfolio } from "@/actions/public-portfolio";
 
-// ดึง USD/THB exchange rate จาก Binance
+// ดึง USD/THB exchange rate จาก Bitkub API
 async function getUsdThbRate() {
   try {
-    const response = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=USDTTHB", {
+    const response = await fetch("https://api.bitkub.com/api/market/ticker", {
       next: { revalidate: 30 }
     });
     
     if (!response.ok) {
-      console.warn("[getUsdThbRate] Binance API failed:", response.status);
+      console.warn("[getUsdThbRate] Bitkub API failed:", response.status);
       return null;
     }
 
     const data = await response.json();
-    return parseFloat(data.price) || null;
+    // Bitkub returns USDT/THB as THB_USDT.last
+    const rate = data?.THB_USDT?.last;
+    return rate ? parseFloat(rate) : null;
   } catch (error) {
-    console.error("[getUsdThbRate] Error fetching from Binance:", error);
+    console.error("[getUsdThbRate] Error fetching from Bitkub:", error);
     return null;
   }
 }
@@ -29,7 +31,7 @@ export async function GET(
     const { id } = await params;
     const { currentPrices } = await getSpecialPortfolio(id);
     
-    // ดึง exchange rate จาก Binance
+    // ดึง exchange rate จาก Bitkub
     const usdThbRate = await getUsdThbRate();
     
     // สร้าง timestamp สำหรับการ update ล่าสุด
@@ -40,7 +42,7 @@ export async function GET(
       prices: currentPrices,
       exchange_rate: {
         usd_to_thb: usdThbRate,
-        source: "binance",
+        source: "bitkub",
         updated_at: lastUpdated
       },
       last_updated: lastUpdated,

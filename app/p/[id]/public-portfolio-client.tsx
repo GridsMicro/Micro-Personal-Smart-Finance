@@ -92,10 +92,12 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
     const priceUsd = price ? Number(price.price_usd) : 0;
     const change = price?.change_24h ? Number(price.change_24h) : 0;
     const costThb = Number(h.cost_thb ?? 0);
-    const valueThb = amount * priceThb;
+    // สูตรคำนวน: (ปริมาณเหรียญ × ราคา) × (1 - 0.25% ค่าธรรมเนียม)
+    const FEE_RATE = 0.0025; // 0.25%
+    const valueThb = (amount * priceThb) * (1 - FEE_RATE);
     const pnl = valueThb - costThb;
     const pnlPct = costThb > 0 ? (pnl / costThb) * 100 : 0;
-    return { ...h, amount, priceThb, priceUsd, valueThb, value_usd: amount * priceUsd, change, costThb, pnl, pnlPct };
+    return { ...h, amount, priceThb, priceUsd, valueThb, value_usd: (amount * priceUsd) * (1 - FEE_RATE), change, costThb, pnl, pnlPct };
   });
 
   const totalCost = holdingValues.reduce((s, h) => s + h.costThb, 0);
@@ -220,7 +222,7 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
               {exchangeRate && (
                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#0A1845] border border-[#0F1F55]">
                   <span className="text-[#00D4FF]">📊</span>
-                  <span>USD/THB: <span className="font-semibold text-white">{exchangeRate.toFixed(2)}</span> <span className="text-[#5A6A9A]">(Binance)</span></span>
+                  <span>USD/THB: <span className="font-semibold text-white">{exchangeRate.toFixed(2)}</span> <span className="text-[#5A6A9A]">(Bitkub)</span></span>
                 </div>
               )}
               {lastUpdated && (
@@ -232,6 +234,66 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
             </div>
           )}
         </div>
+
+        {/* Current Prices - BTC & TRX */}
+        {holdingValues.length > 0 && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {holdingValues.map((h) => (
+              <div 
+                key={h.id} 
+                onClick={() => setActiveCoin(h.coin_id)}
+                className="rounded-xl border border-[#0F1F55] bg-gradient-to-b from-[#071442] to-[#040E35] p-6 cursor-pointer hover:border-[#162660] transition-all"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    {h.asset_image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={h.asset_image} alt={h.asset_name ?? ""} className="h-10 w-10 rounded-full object-cover" />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full flex items-center justify-center text-base font-bold text-white" style={{ background: COIN_COLORS[h.coin_id] ?? "#00D4FF" }}>
+                        {(h.asset_symbol ?? h.coin_id)[0]}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-lg font-bold text-white">{h.asset_symbol ?? h.coin_id.toUpperCase()}</p>
+                      <p className="text-xs text-[#5A6A9A] mt-0.5">{h.asset_name}</p>
+                    </div>
+                  </div>
+                  <span className={`text-sm px-3 py-1 rounded-full font-semibold ${h.change >= 0 ? "bg-[#00E676]/20 text-[#00E676]" : "bg-[#FF5252]/20 text-[#FF5252]"}`}>
+                    {h.change >= 0 ? "↑" : "↓"} {Math.abs(h.change).toFixed(2)}%
+                  </span>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs text-[#A0A0B0] mb-2">ราคาปัจจุบัน</p>
+                    <p className="text-3xl font-bold text-white">
+                      {currency === "thb" ? `฿${h.priceThb.toLocaleString("th-TH", { maximumFractionDigits: 2 })}` : `$${h.priceUsd.toLocaleString("en-US", { maximumFractionDigits: 4 })}`}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-[#A0A0B0] mb-2">ปริมาณถือครอง</p>
+                    <p className="text-sm font-semibold text-white">{h.amount.toFixed(8)} เหรียญ</p>
+                  </div>
+                  
+                  <div className="pt-2 border-t border-[#0F1F55]">
+                    <p className="text-xs text-[#A0A0B0] mb-2">มูลค่าสุทธิ (หักค่าธรรมเนียม 0.25%)</p>
+                    <p className={`text-2xl font-bold ${h.pnl >= 0 ? "text-[#00E676]" : "text-[#FF5252]"}`}>
+                      {currency === "thb" 
+                        ? `฿${h.valueThb.toLocaleString("th-TH", { maximumFractionDigits: 2 })}`
+                        : `$${h.value_usd.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+                      }
+                    </p>
+                    <p className={`text-xs mt-2 ${h.pnl >= 0 ? "text-[#00E676]" : "text-[#FF5252]"}`}>
+                      {h.pnl >= 0 ? "+" : ""}฿{h.pnl.toLocaleString("th-TH", { maximumFractionDigits: 0 })} ({h.pnlPct >= 0 ? "+" : ""}{h.pnlPct.toFixed(2)}%)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Summary */}
         <div className="grid gap-4 sm:grid-cols-3">
@@ -267,51 +329,6 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
               )}
             </div>
           ))}
-        </div>
-
-        {/* Holdings */}
-        <div className="rounded-xl border border-[#0F1F55] bg-gradient-to-b from-[#071442] to-[#040E35] p-5">
-          <h2 className="text-base font-semibold text-white mb-4">สินทรัพย์ที่ถือครอง</h2>
-          <div className="space-y-3">
-            {holdingValues.map((h) => (
-              <div
-                key={h.id}
-                onClick={() => setActiveCoin(h.coin_id)}
-                className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${activeCoin === h.coin_id ? "bg-[#0A1845] border border-[#162660]" : "hover:bg-[#0A1845]/50"}`}
-              >
-                <div className="flex items-center gap-3">
-                  {h.asset_image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={h.asset_image} alt={h.asset_name ?? ""} className="h-9 w-9 rounded-full object-cover shrink-0" />
-                  ) : (
-                    <div className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: COIN_COLORS[h.coin_id] ?? "#00D4FF" }}>
-                      {(h.asset_symbol ?? h.coin_id)[0]}
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-semibold text-white">{h.asset_symbol ?? h.coin_id.toUpperCase()}</p>
-                    <p className="text-xs text-[#5A6A9A]">{h.amount.toFixed(8)} เหรียญ</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-white">
-                    {currency === "thb"
-                      ? `฿${h.valueThb.toLocaleString("th-TH", { maximumFractionDigits: 2 })}`
-                      : `$${h.value_usd.toLocaleString("en-US", { maximumFractionDigits: 2 })}`}
-                  </p>
-                  <div className="flex items-center justify-end gap-2 mt-0.5">
-                    <span className={`text-xs ${h.pnl >= 0 ? "text-[#00E676]" : "text-[#FF5252]"}`}>
-                      {h.pnl >= 0 ? "+" : ""}฿{h.pnl.toLocaleString("th-TH", { maximumFractionDigits: 0 })} ({h.pnlPct >= 0 ? "+" : ""}{h.pnlPct.toFixed(2)}%)
-                    </span>
-                    <span className={`text-xs flex items-center gap-0.5 ${h.change >= 0 ? "text-[#00E676]" : "text-[#FF5252]"}`}>
-                      {h.change >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {Math.abs(h.change).toFixed(2)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Chart */}
