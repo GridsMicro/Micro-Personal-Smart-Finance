@@ -270,6 +270,20 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
                     <p className="text-3xl font-bold text-white">
                       {currency === "thb" ? `฿${h.priceThb.toLocaleString("th-TH", { maximumFractionDigits: 2 })}` : `$${h.priceUsd.toLocaleString("en-US", { maximumFractionDigits: 4 })}`}
                     </p>
+                    <p className="text-[10px] text-[#5A6A9A] mt-1.5 flex items-center gap-1">
+                      <span>🕐</span>
+                      <span>
+                        ข้อมูล ณ{" "}
+                        <span className="text-[#A0A0B0] font-medium" suppressHydrationWarning>
+                          {new Date(lastUpdated ?? Date.now()).toLocaleTimeString("th-TH", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                            timeZone: "Asia/Bangkok",
+                          })} น.
+                        </span>
+                      </span>
+                    </p>
                   </div>
                   
                   <div>
