@@ -42,6 +42,8 @@ interface Props {
 const COIN_COLORS: Record<string, string> = {
   bitcoin: "#F7931A",
   tron: "#FF0013",
+  ethereum: "#627EEA",
+  dogecoin: "#C2A633",
 };
 
 export default function PublicPortfolioClient({ portfolio, holdings, currentPrices: initialPrices, priceHistories, portfolioSnapshots }: Props) {

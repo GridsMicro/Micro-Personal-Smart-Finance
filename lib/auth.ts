@@ -48,6 +48,7 @@ export const {
           .limit(1);
 
         if (!existingUser) {
+          const isAdminEmail = email === process.env.ADMIN_EMAIL;
           const [newUser] = await db
             .insert(mcUser)
             .values({
@@ -55,11 +56,22 @@ export const {
               email,
               name: user.name ?? (profile as { login?: string })?.login ?? null,
               image: user.image ?? null,
-              role: "user",
+              role: isAdminEmail ? "admin" : "user",
               is_active: true,
             })
             .returning();
           existingUser = newUser;
+        } else {
+          // If existing user and matches admin email but role is not admin, update it
+          const isAdminEmail = email === process.env.ADMIN_EMAIL;
+          if (isAdminEmail && existingUser.role !== "admin" && existingUser.role !== "superadmin") {
+            const [updatedUser] = await db
+              .update(mcUser)
+              .set({ role: "admin" })
+              .where(eq(mcUser.id, existingUser.id))
+              .returning();
+            existingUser = updatedUser;
+          }
         }
 
         const [existingAccount] = await db
