@@ -8,10 +8,11 @@ import {
 import { TrendingUp, TrendingDown, ArrowLeft, RefreshCw, Database, CheckCircle, XCircle } from "lucide-react";
 import useSWR from "swr";
 import { checkDatabaseHealth } from "@/actions/public-portfolio";
- 
+
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface Holding {
+  buy_price_usd_avg?: number | null;
   id: string;
   coin_id: string;
   amount: string;
@@ -82,11 +83,11 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
     fallbackData: { success: true, prices: initialPrices },
     refreshInterval: 60000, // อัปเดตราคาทุก 1 นาที
   });
- 
+
   const prices = data?.prices ?? initialPrices;
   const exchangeRate = data?.exchange_rate?.usd_to_thb ?? null;
   const lastUpdated = data?.last_updated ?? null;
- 
+
   const holdingValues = holdings.map((h) => {
     const price = prices[h.coin_id];
     const amount = Number(h.amount);
@@ -99,7 +100,24 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
     const valueThb = (amount * priceThb) * (1 - FEE_RATE);
     const pnl = valueThb - costThb;
     const pnlPct = costThb > 0 ? (pnl / costThb) * 100 : 0;
-    return { ...h, amount, priceThb, priceUsd, valueThb, value_usd: (amount * priceUsd) * (1 - FEE_RATE), change, costThb, pnl, pnlPct };
+    // Calculate average USDT price on purchase date
+    const buyDateStr = new Date(h.bought_at).toISOString().split('T')[0];
+    const pricePoints = priceHistories[h.coin_id] ?? [];
+    const matchingPoints = pricePoints.filter(p => p.date === buyDateStr);
+    const avgBuyUsd = matchingPoints.length > 0 ? matchingPoints.reduce((s, p) => s + p.price_usd, 0) / matchingPoints.length : null;
+    return {
+      ...h,
+      amount,
+      priceThb,
+      priceUsd,
+      valueThb,
+      value_usd: (amount * priceUsd) * (1 - FEE_RATE),
+      change,
+      costThb,
+      pnl,
+      pnlPct,
+      buy_price_usd_avg: avgBuyUsd,
+    };
   });
 
   const totalCost = holdingValues.reduce((s, h) => s + h.costThb, 0);
@@ -115,7 +133,7 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
   // Append live data as the latest point if today is missing or if we want real-time update
   const todayStr = new Date().toISOString().slice(0, 10);
   const lastSnapshot = portfolioChartData[portfolioChartData.length - 1];
-  
+
   if (!lastSnapshot || lastSnapshot.date !== todayStr) {
     portfolioChartData.push({ date: todayStr, price_thb: totalValueThb });
   } else {
@@ -158,7 +176,7 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
       for (const a of chartData) {
         assetMap.set(a.date, a.price_thb ?? 0);
       }
-      
+
       mergedAssetOnSnapshots = portfolioChartData.map((p) => {
         const d = p.date;
         const assetPrice = assetMap.get(d);
@@ -181,16 +199,15 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
             <span className="font-bold text-white text-[15px]">Micro Finance</span>
           </Link>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={handleCheckHealth}
               disabled={isCheckingHealth}
-              className={`flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-semibold transition-all border ${
-                dbHealth.is_healthy === true 
-                  ? "border-[#00E676]/30 bg-[#00E676]/10 text-[#00E676]" 
-                  : dbHealth.is_healthy === false 
+              className={`flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-semibold transition-all border ${dbHealth.is_healthy === true
+                ? "border-[#00E676]/30 bg-[#00E676]/10 text-[#00E676]"
+                : dbHealth.is_healthy === false
                   ? "border-[#FF5252]/30 bg-[#FF5252]/10 text-[#FF5252]"
                   : "border-[#0F1F55] text-[#A0A0B0]"
-              } hover:brightness-110`}
+                } hover:brightness-110`}
               title={`Last check: ${dbHealth.timestamp}`}
             >
               <Database className={`h-3.5 w-3.5 ${isCheckingHealth ? "animate-spin" : ""}`} />
@@ -217,7 +234,7 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
           </div>
           <h1 className="text-3xl font-bold text-white">{portfolio.name}</h1>
           {portfolio.description && <p className="text-sm text-[#A0A0B0] mt-1">{portfolio.description}</p>}
-          
+
           {/* Exchange Rate & Last Updated */}
           {(exchangeRate || lastUpdated) && (
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#A0A0B0]">
@@ -241,8 +258,8 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
         {holdingValues.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2">
             {holdingValues.map((h) => (
-              <div 
-                key={h.id} 
+              <div
+                key={h.id}
                 onClick={() => setActiveCoin(h.coin_id)}
                 className="rounded-xl border border-[#0F1F55] bg-gradient-to-b from-[#071442] to-[#040E35] p-6 cursor-pointer hover:border-[#162660] transition-all"
               >
@@ -265,13 +282,15 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
                     {h.change >= 0 ? "↑" : "↓"} {Math.abs(h.change).toFixed(2)}%
                   </span>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div>
                     <p className="text-xs text-[#A0A0B0] mb-2">ราคาปัจจุบัน</p>
                     <p className="text-3xl font-bold text-white">
                       {currency === "thb" ? `฿${h.priceThb.toLocaleString("th-TH", { maximumFractionDigits: 2 })}` : `$${h.priceUsd.toLocaleString("en-US", { maximumFractionDigits: 4 })}`}
                     </p>
+                    <p className="text-sm text-[#A0A0B0] mb-2">ราคา​ซื้อ</p>
+                    <p className="text-xl font-semibold text-white">@฿{Number(h.buy_price_thb ?? 0).toLocaleString("th-TH")}</p>
                     <p className="text-[10px] text-[#5A6A9A] mt-1.5 flex items-center gap-1">
                       <span>🕐</span>
                       <span>
@@ -287,16 +306,16 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
                       </span>
                     </p>
                   </div>
-                  
+
                   <div>
                     <p className="text-xs text-[#A0A0B0] mb-2">ปริมาณถือครอง</p>
                     <p className="text-sm font-semibold text-white">{h.amount.toFixed(8)} เหรียญ</p>
                   </div>
-                  
+
                   <div className="pt-2 border-t border-[#0F1F55]">
                     <p className="text-xs text-[#A0A0B0] mb-2">มูลค่าสุทธิ (หักค่าธรรมเนียม 0.25%)</p>
                     <p className={`text-2xl font-bold ${h.pnl >= 0 ? "text-[#00E676]" : "text-[#FF5252]"}`}>
-                      {currency === "thb" 
+                      {currency === "thb"
                         ? `฿${h.valueThb.toLocaleString("th-TH", { maximumFractionDigits: 2 })}`
                         : `$${h.value_usd.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
                       }
