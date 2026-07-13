@@ -27,6 +27,9 @@ export async function getSpecialPortfolio(portfolio_id: string) {
 
   if (!portfolio) throw new Error("ไม่พบพอร์ตนี้");
 
+  // ดึงเงินสด (cash balance) จากพอร์ต
+  const cashBalance = Number(portfolio.cash_balance_thb ?? 0);
+
   // ดึง holdings พร้อม asset info
   const holdings = await db
     .select({
@@ -130,13 +133,12 @@ export async function getSpecialPortfolio(portfolio_id: string) {
     }
   }
 
-  // Debug: show which assets we have prices for (helps verify TRX presence)
   // eslint-disable-next-line no-console
   console.log("[getSpecialPortfolio] currentPrices keys:", Object.keys(currentPrices));
   // eslint-disable-next-line no-console
   console.log("[getSpecialPortfolio] tron price: ", JSON.stringify(currentPrices["tron"] ?? null));
 
-  return { portfolio, holdings, currentPrices };
+  return { portfolio, holdings, currentPrices, cashBalance };
 }
 
 export async function getSpecialPriceHistory(asset_id: string, days = 90) {

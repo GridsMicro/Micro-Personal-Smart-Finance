@@ -30,8 +30,8 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
         holdings={detail.holdings}
         currentPrices={detail.currentPrices}
         priceHistories={priceHistories}
-        // pass the full canonical snapshots array unmodified
         portfolioSnapshots={portfolioSnapshots}
+        cashBalance={detail.cashBalance}
       />
     );
   } catch (err) {

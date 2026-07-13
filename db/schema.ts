@@ -208,6 +208,7 @@ export const specialPortfolio = pgTable("special_portfolio", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   is_public: boolean("is_public").default(true),
+  cash_balance_thb: numeric("cash_balance_thb", { precision: 36, scale: 18 }).default("0"),
   created_at: timestamp("created_at").defaultNow(),
 });
 

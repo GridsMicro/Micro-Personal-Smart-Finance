@@ -38,6 +38,7 @@ interface Props {
   currentPrices: Record<string, { price_usd: string; price_thb: string | null; change_24h: string | null }>;
   priceHistories: Record<string, PricePoint[]>;
   portfolioSnapshots?: { snapshot_date: string; total_value_thb: number; btc_price_thb?: number | null; trx_price_thb?: number | null }[];
+  cashBalance: number;
 }
 
 const COIN_COLORS: Record<string, string> = {
@@ -47,7 +48,7 @@ const COIN_COLORS: Record<string, string> = {
   dogecoin: "#C2A633",
 };
 
-export default function PublicPortfolioClient({ portfolio, holdings, currentPrices: initialPrices, priceHistories, portfolioSnapshots }: Props) {
+export default function PublicPortfolioClient({ portfolio, holdings, currentPrices: initialPrices, priceHistories, portfolioSnapshots, cashBalance }: Props) {
   // Default: prefer BTC as the initially selected asset (so BTC chart shows first)
   // Fallback to first holding.coin_id or empty string
   const [activeCoin, setActiveCoin] = useState<string>(() => {
@@ -121,8 +122,8 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
   });
 
   const totalCost = holdingValues.reduce((s, h) => s + h.costThb, 0);
-  const totalValueThb = holdingValues.reduce((s, h) => s + h.valueThb, 0);
-  const totalValueUsd = holdingValues.reduce((s, h) => s + h.value_usd, 0);
+  const totalValueThb = holdingValues.reduce((s, h) => s + h.valueThb, 0) + cashBalance; // รวมเงินสด
+  const totalValueUsd = holdingValues.reduce((s, h) => s + h.value_usd, 0) + (exchangeRate ? cashBalance / exchangeRate : 0); // รวมเงินสดแปลงเป็น USD
   const totalPnl = totalValueThb - totalCost;
   const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
 
@@ -257,6 +258,46 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
         {/* Current Prices - BTC & TRX */}
         {holdingValues.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2">
+            {/* แสดงเงินสดก่อน (ถ้ามี) */}
+            {cashBalance > 0 && (
+              <div className="rounded-xl border border-[#0F1F55] bg-gradient-to-b from-[#071442] to-[#040E35] p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full flex items-center justify-center text-base font-bold text-white bg-[#00E676]">
+                      ฿
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-white">เงินสด (THB)</p>
+                      <p className="text-xs text-[#5A6A9A] mt-0.5">จากการขายสินทรัพย์</p>
+                    </div>
+                  </div>
+                  <span className="text-sm px-3 py-1 rounded-full font-semibold bg-[#00E676]/20 text-[#00E676]">
+                    💰 Cash
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs text-[#A0A0B0] mb-2">มูลค่า</p>
+                    <p className="text-3xl font-bold text-[#00E676]">
+                      ฿{cashBalance.toLocaleString("th-TH", { maximumFractionDigits: 2 })}
+                    </p>
+                    {exchangeRate && (
+                      <p className="text-sm text-[#A0A0B0] mt-1">
+                        ${(cashBalance / exchangeRate).toLocaleString("en-US", { maximumFractionDigits: 2 })} USD
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-[#0F1F55]">
+                    <p className="text-xs text-[#A0A0B0]">
+                      💡 เงินสดจากการขาย DOGE และ ETH
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {holdingValues.map((h) => (
               <div
                 key={h.id}
