@@ -130,7 +130,7 @@ def cmd_add(symbol: str, coingecko_id: str, tv_symbol: str | None = None, color:
     cur.execute("""
         INSERT INTO assets (id, symbol, name, type, is_active, coingecko_id)
         VALUES (%s, %s, %s, 'crypto', true, %s)
-    """, (coin_id, symbol, symbol, symbol))
+    """, (coin_id, symbol, symbol, coin_id))
     conn.commit()
     conn.close()
     print(f"✅ เพิ่ม {symbol} ({coin_id}) สำเร็จ")

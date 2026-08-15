@@ -56,6 +56,7 @@ interface CoinData {
   id: string;
   price_usd: number;
   price_thb: number | null;
+  price_usdt: number | null;
   change_24h: number | null;
 }
 
@@ -159,7 +160,9 @@ function ChartModal({ coin, onClose }: { coin: CoinData; onClose: () => void }) 
                 </p>
               )}
               <p className="text-xs text-[#A0A0B0]">
-                ${coin.price_usd.toLocaleString("en-US", { maximumFractionDigits: coin.price_usd < 1 ? 6 : 2 })}
+                {coin.price_usdt != null
+                  ? `$${coin.price_usdt.toLocaleString("en-US", { maximumFractionDigits: coin.price_usdt < 1 ? 6 : 2 })} USDT`
+                  : `$${coin.price_usd.toLocaleString("en-US", { maximumFractionDigits: coin.price_usd < 1 ? 6 : 2 })} USD`}
               </p>
             </div>
 
@@ -207,10 +210,15 @@ export default function MarketClient() {
   const exchangeRate: number | null = data?.exchange_rate?.usd_to_thb ?? null;
   const lastUpdated: string | null = data?.last_updated ?? null;
 
+  // ราคา USDT (THB) จาก API — ใช้คำนวณ price_usdt = price_thb ÷ usdt_thb
+  const usdtThb: number | null = prices["tether"]?.price_thb ? Number(prices["tether"].price_thb) : null;
+
   const coins: CoinData[] = Object.entries(prices).map(([id, p]) => ({
     id,
     price_usd: Number(p.price_usd),
     price_thb: p.price_thb ? Number(p.price_thb) : null,
+    // คำนวณราคาเป็น USDT จาก price_thb ÷ usdt_thb_rate (แม่นยำกว่าใช้ price_usd จาก CoinGecko)
+    price_usdt: (p.price_thb && usdtThb) ? Number(p.price_thb) / usdtThb : null,
     change_24h: p.change_24h ? Number(p.change_24h) : null,
   }));
 
@@ -280,7 +288,7 @@ export default function MarketClient() {
             <div className="grid grid-cols-4 px-5 py-3 border-b border-[#0F1F55] text-xs text-[#5A6A9A] font-medium uppercase tracking-wide">
               <span>เหรียญ</span>
               <span className="text-right">ราคา (THB)</span>
-              <span className="text-right">ราคา (USD)</span>
+              <span className="text-right">ราคา (USDT)</span>
               <span className="text-right">24h</span>
             </div>
 
@@ -325,9 +333,11 @@ export default function MarketClient() {
                           : "—"}
                       </p>
 
-                      {/* USD */}
+                      {/* USDT */}
                       <p className="text-right text-sm text-[#A0A0B0]">
-                        ${coin.price_usd.toLocaleString("en-US", { maximumFractionDigits: coin.price_usd < 1 ? 6 : 2 })}
+                        {coin.price_usdt != null
+                          ? `$${coin.price_usdt.toLocaleString("en-US", { maximumFractionDigits: coin.price_usdt < 1 ? 6 : 2 })}`
+                          : "—"}
                       </p>
 
                       {/* 24h */}
