@@ -135,6 +135,12 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
             <span className="font-bold text-white text-[15px]">Micro Finance</span>
           </Link>
           <div className="flex items-center gap-2">
+            <Link
+              href="/p/market"
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border border-[#0F1F55] text-[#A0A0B0] hover:bg-[#0A1845] hover:text-white transition-all"
+            >
+              📈 Market
+            </Link>
             <button
               onClick={handleCheckHealth}
               disabled={isCheckingHealth}
