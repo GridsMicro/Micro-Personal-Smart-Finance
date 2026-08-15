@@ -277,10 +277,10 @@ export default function MarketClient() {
 
           {/* Coin Table */}
           <div className="rounded-xl border border-[#0F1F55] bg-gradient-to-b from-[#071442] to-[#040E35] overflow-hidden">
-            <div className="grid grid-cols-3 sm:grid-cols-4 px-5 py-3 border-b border-[#0F1F55] text-xs text-[#5A6A9A] font-medium uppercase tracking-wide">
+            <div className="grid grid-cols-4 px-5 py-3 border-b border-[#0F1F55] text-xs text-[#5A6A9A] font-medium uppercase tracking-wide">
               <span>เหรียญ</span>
               <span className="text-right">ราคา (THB)</span>
-              <span className="text-right hidden sm:block">ราคา (USD)</span>
+              <span className="text-right">ราคา (USD)</span>
               <span className="text-right">24h</span>
             </div>
 
@@ -300,7 +300,7 @@ export default function MarketClient() {
                     <button
                       key={coin.id}
                       onClick={() => setSelectedCoin(coin)}
-                      className="w-full grid grid-cols-3 sm:grid-cols-4 px-5 py-4 hover:bg-[#0A1845] active:bg-[#0F1F55] transition-colors items-center text-left group"
+                      className="w-full grid grid-cols-4 px-5 py-4 hover:bg-[#0A1845] active:bg-[#0F1F55] transition-colors items-center text-left group"
                     >
                       {/* Coin */}
                       <div className="flex items-center gap-2.5">
@@ -326,7 +326,7 @@ export default function MarketClient() {
                       </p>
 
                       {/* USD */}
-                      <p className="text-right text-sm text-[#A0A0B0] hidden sm:block">
+                      <p className="text-right text-sm text-[#A0A0B0]">
                         ${coin.price_usd.toLocaleString("en-US", { maximumFractionDigits: coin.price_usd < 1 ? 6 : 2 })}
                       </p>
 
