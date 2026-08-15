@@ -31,7 +31,8 @@ const TV_SYMBOL: Record<string, string> = {
   "1000sats-ordinals":"BINANCE:SATSUSDT",
   goat:               "BINANCE:GOATUSDT",
   "moo-deng":         "BINANCE:MOODENGUSDT",
-};
+
+  chainlink: "BITKUB:LINKTHB",};
 
 const COIN_SYMBOL: Record<string, string> = {
   bitcoin: "BTC", ethereum: "ETH", tron: "TRX", dogecoin: "DOGE",
@@ -43,6 +44,7 @@ const COIN_SYMBOL: Record<string, string> = {
 };
 
 const COIN_COLOR: Record<string, string> = {
+  chainlink: "#2A5ADA",
   bitcoin: "#F7931A", ethereum: "#627EEA", tron: "#FF0013",
   dogecoin: "#C2A633", tether: "#26A17B", solana: "#9945FF",
   cardano: "#0033AD", ripple: "#346AA9", binancecoin: "#F3BA2F",
