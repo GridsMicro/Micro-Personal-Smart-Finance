@@ -4,7 +4,7 @@
  * Special Port: /p/a0000000-0000-0000-0000-000000000001
  */
 
-import { getSpecialPortfolio, getSpecialPriceHistory, getSpecialPortfolioSnapshots } from "@/actions/public-portfolio";
+import { getSpecialPortfolio, getSpecialPriceHistory, getSpecialPortfolioSnapshots, getUsdtPriceAtDates } from "@/actions/public-portfolio";
 import { notFound } from "next/navigation";
 import PublicPortfolioClient from "./public-portfolio-client";
 
@@ -24,6 +24,11 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
     // Force using the canonical snapshots table as the primary source for the chart
     const portfolioSnapshots = await getSpecialPortfolioSnapshots(id);
 
+    // ดึงราคา USDT ณ วันที่ซื้อแต่ละ holding
+    const usdtPriceAtBuy = await getUsdtPriceAtDates(
+      detail.holdings.map((h) => ({ holding_id: h.id, date: new Date(h.bought_at) }))
+    );
+
     return (
       <PublicPortfolioClient
         portfolio={detail.portfolio}
@@ -32,6 +37,7 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
         priceHistories={priceHistories}
         portfolioSnapshots={portfolioSnapshots}
         cashBalance={detail.cashBalance}
+        usdtPriceAtBuy={usdtPriceAtBuy}
       />
     );
   } catch (err) {

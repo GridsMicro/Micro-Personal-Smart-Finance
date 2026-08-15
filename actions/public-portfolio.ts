@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { specialPortfolio, specialPortfolioHoldings, assets, marketPrices, specialPortfolioSnapshots } from "@/db/schema";
-import { eq, desc, gte, asc, and } from "drizzle-orm";
+import { eq, desc, gte, asc, and, lte } from "drizzle-orm";
 import { requireAdmin } from "@/app/proxy/auth";
 import { readSnapshotsFromCache, saveSnapshotsToCache } from "@/lib/snapshot-cache";
 import { sql as drizzleSql } from "drizzle-orm";
@@ -306,4 +306,48 @@ export async function addSpecialHolding(data: {
 export async function deleteSpecialHolding(holding_id: string) {
   await requireAdmin();
   await db.delete(specialPortfolioHoldings).where(eq(specialPortfolioHoldings.id, holding_id));
+}
+
+/**
+ * ดึงราคา USDT (THB) ณ วันที่ซื้อแต่ละ holding
+ * คืนค่า map: holding_id → usdt_price_thb
+ */
+export async function getUsdtPriceAtDates(
+  dates: { holding_id: string; date: Date }[]
+): Promise<Record<string, number | null>> {
+  const result: Record<string, number | null> = {};
+
+  for (const { holding_id, date } of dates) {
+    // หา USDT price ที่ใกล้เคียง วันที่ซื้อมากที่สุด (ไม่เกินวันนั้น)
+    const dayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0));
+    const dayEnd = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999));
+
+    const [row] = await db
+      .select({ price_thb: marketPrices.price_thb, last_updated: marketPrices.last_updated })
+      .from(marketPrices)
+      .where(
+        and(
+          eq(marketPrices.asset_id, "tether"),
+          gte(marketPrices.last_updated, dayStart),
+          lte(marketPrices.last_updated, dayEnd)
+        )
+      )
+      .orderBy(asc(marketPrices.last_updated))
+      .limit(1);
+
+    if (row) {
+      result[holding_id] = Number(row.price_thb);
+    } else {
+      // fallback: หา record ใกล้ที่สุดก่อนวันนั้น
+      const [fallback] = await db
+        .select({ price_thb: marketPrices.price_thb })
+        .from(marketPrices)
+        .where(and(eq(marketPrices.asset_id, "tether"), lte(marketPrices.last_updated, dayEnd)))
+        .orderBy(desc(marketPrices.last_updated))
+        .limit(1);
+      result[holding_id] = fallback ? Number(fallback.price_thb) : null;
+    }
+  }
+
+  return result;
 }

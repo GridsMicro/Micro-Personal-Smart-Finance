@@ -39,6 +39,7 @@ interface Props {
   priceHistories: Record<string, PricePoint[]>;
   portfolioSnapshots?: { snapshot_date: string; total_value_thb: number; btc_price_thb?: number | null; trx_price_thb?: number | null }[];
   cashBalance: number;
+  usdtPriceAtBuy?: Record<string, number | null>;
 }
 
 const COIN_COLORS: Record<string, string> = {
@@ -48,7 +49,7 @@ const COIN_COLORS: Record<string, string> = {
   dogecoin: "#C2A633",
 };
 
-export default function PublicPortfolioClient({ portfolio, holdings, currentPrices: initialPrices, priceHistories, portfolioSnapshots, cashBalance }: Props) {
+export default function PublicPortfolioClient({ portfolio, holdings, currentPrices: initialPrices, priceHistories, portfolioSnapshots, cashBalance, usdtPriceAtBuy = {} }: Props) {
   // Default: prefer BTC as the initially selected asset (so BTC chart shows first)
   // Fallback to first holding.coin_id or empty string
   const [activeCoin, setActiveCoin] = useState<string>(() => {
@@ -535,6 +536,17 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
                   <p className="text-xs text-[#A0A0B0]">
                     ฿{Number(h.costThb).toLocaleString("th-TH")} · @฿{Number(h.buy_price_thb ?? 0).toLocaleString("th-TH")}
                   </p>
+                  {(() => {
+                    const usdtRate = usdtPriceAtBuy[h.id];
+                    if (!usdtRate) return null;
+                    const priceInUsdt = Number(h.buy_price_thb ?? 0) / usdtRate;
+                    return (
+                      <p className="text-xs text-[#5A6A9A] mt-0.5">
+                        ≈ ${priceInUsdt.toLocaleString("en-US", { maximumFractionDigits: 2 })} USDT
+                        <span className="ml-1 text-[#3A4A7A]">(1 USDT = ฿{usdtRate.toFixed(2)})</span>
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
             ))}
