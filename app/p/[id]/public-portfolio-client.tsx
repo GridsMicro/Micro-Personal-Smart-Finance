@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from "recharts";
-import { TrendingUp, TrendingDown, ArrowLeft, RefreshCw, Database, CheckCircle, XCircle } from "lucide-react";
+  TrendingUp, TrendingDown, ArrowLeft, RefreshCw, Database, CheckCircle, XCircle,
+} from "lucide-react";
 import useSWR from "swr";
 import { checkDatabaseHealth } from "@/actions/public-portfolio";
 
@@ -52,11 +51,6 @@ const COIN_COLORS: Record<string, string> = {
 export default function PublicPortfolioClient({ portfolio, holdings, currentPrices: initialPrices, priceHistories, portfolioSnapshots, cashBalance, usdtPriceAtBuy = {} }: Props) {
   // Default: prefer BTC as the initially selected asset (so BTC chart shows first)
   // Fallback to first holding.coin_id or empty string
-  const [activeCoin, setActiveCoin] = useState<string>(() => {
-    const btc = holdings.find((h) => (h.asset_symbol ?? "").toUpperCase() === "BTC" || String(h.coin_id).toLowerCase() === "bitcoin");
-    if (btc) return btc.coin_id;
-    return holdings[0]?.coin_id ?? "";
-  });
   const [currency, setCurrency] = useState<"usd" | "thb">("thb");
   const [dbHealth, setDbHealth] = useState<{ is_healthy: boolean | null; message: string; timestamp: string }>({
     is_healthy: null,
@@ -128,66 +122,6 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
   const totalPnl = totalValueThb - totalCost;
   const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
 
-  const chartData = priceHistories[activeCoin] ?? [];
-  // Use exact field names from snapshots: snapshot_date and total_value_thb
-  let portfolioChartData = (portfolioSnapshots ?? []).map((p) => ({ date: p.snapshot_date, price_thb: p.total_value_thb }));
-
-  // Append live data as the latest point if today is missing or if we want real-time update
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const lastSnapshot = portfolioChartData[portfolioChartData.length - 1];
-
-  if (!lastSnapshot || lastSnapshot.date !== todayStr) {
-    portfolioChartData.push({ date: todayStr, price_thb: totalValueThb });
-  } else {
-    // Update today's point with live value
-    portfolioChartData[portfolioChartData.length - 1].price_thb = totalValueThb;
-  }
-
-  // If an asset is selected, merge asset series onto the snapshot dates and fallback to snapshot value for missing days
-  let mergedAssetOnSnapshots: { date: string; price_thb: number | null }[] = [];
-  if (activeCoin) {
-    const held = holdings.find((h) => h.coin_id === activeCoin);
-    const symbol = held?.asset_symbol?.toUpperCase() ?? "";
-    const currentAssetPrice = prices[activeCoin]?.price_thb ? Number(prices[activeCoin].price_thb) : 0;
-
-    if (symbol === "BTC" || symbol === "TRX") {
-      mergedAssetOnSnapshots = (portfolioSnapshots ?? []).map((p) => ({
-        date: p.snapshot_date,
-        price_thb: symbol === "BTC" ? (p.btc_price_thb ?? null) : (p.trx_price_thb ?? null),
-      }));
-
-      // Append live asset price for today
-      if (!lastSnapshot || lastSnapshot.date !== todayStr) {
-        mergedAssetOnSnapshots.push({ date: todayStr, price_thb: currentAssetPrice });
-      } else {
-        mergedAssetOnSnapshots[mergedAssetOnSnapshots.length - 1].price_thb = currentAssetPrice;
-      }
-
-      // forward-fill nulls to ensure continuous line
-      let last: number | null = null;
-      mergedAssetOnSnapshots = mergedAssetOnSnapshots.map((pt) => {
-        if (pt.price_thb === null || typeof pt.price_thb === "undefined") {
-          return { date: pt.date, price_thb: last };
-        }
-        last = pt.price_thb;
-        return pt;
-      });
-    } else {
-      // create a map of asset date -> price
-      const assetMap = new Map<string, number>();
-      for (const a of chartData) {
-        assetMap.set(a.date, a.price_thb ?? 0);
-      }
-
-      mergedAssetOnSnapshots = portfolioChartData.map((p) => {
-        const d = p.date;
-        const assetPrice = assetMap.get(d);
-        // If it's today and we have live price, use it
-        if (d === todayStr && currentAssetPrice > 0) return { date: d, price_thb: currentAssetPrice };
-        return { date: d, price_thb: assetPrice ?? p.price_thb };
-      });
-    }
-  }
 
   return (
     <div className="min-h-screen bg-[#00072D] text-white">
@@ -302,8 +236,7 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
             {holdingValues.map((h) => (
               <div
                 key={h.id}
-                onClick={() => setActiveCoin(h.coin_id)}
-                className="rounded-xl border border-[#0F1F55] bg-gradient-to-b from-[#071442] to-[#040E35] p-6 cursor-pointer hover:border-[#162660] transition-all"
+                className="rounded-xl border border-[#0F1F55] bg-gradient-to-b from-[#071442] to-[#040E35] p-6"
               >
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
@@ -408,110 +341,6 @@ export default function PublicPortfolioClient({ portfolio, holdings, currentPric
           ))}
         </div>
 
-        {/* Chart */}
-        <div className="rounded-xl border border-[#0F1F55] bg-gradient-to-b from-[#071442] to-[#040E35] p-5">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-semibold text-white">
-              ประวัติราคา — {holdingValues.find((h) => h.coin_id === activeCoin)?.asset_symbol ?? (activeCoin ? activeCoin.toUpperCase() : "พอร์ตรวม")}
-            </h2>
-            <div className="flex gap-1">
-              {holdings.map((h) => (
-                <button
-                  key={h.coin_id}
-                  onClick={() => setActiveCoin(h.coin_id)}
-                  className="h-7 px-3 rounded-md text-xs font-semibold transition-all"
-                  style={activeCoin === h.coin_id
-                    ? { background: COIN_COLORS[h.coin_id] ?? "#00D4FF", color: "#fff" }
-                    : { background: "transparent", color: "#5A6A9A", border: "1px solid #0F1F55" }
-                  }
-                >
-                  {h.asset_symbol ?? h.coin_id.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Render priority: portfolio snapshots (default) -> merged asset on snapshots -> raw asset series -> empty */}
-          {(!activeCoin && portfolioChartData.length > 0) ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={portfolioChartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="grad_portfolio" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00D4FF" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#00D4FF" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#0F1F55" />
-                <XAxis dataKey="date" tick={{ fill: "#5A6A9A", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#5A6A9A", fontSize: 11 }} axisLine={false} tickLine={false}
-                  tickFormatter={(v) => currency === "thb" ? `฿${Number(v).toLocaleString()}` : `$${Number(v).toLocaleString()}`}
-                  width={120}
-                />
-                <Tooltip
-                  contentStyle={{ background: "#071442", border: "1px solid #0F1F55", borderRadius: 8 }}
-                  labelStyle={{ color: "#A0A0B0", fontSize: 12 }}
-                  formatter={(value) => [currency === "thb" ? `฿${Number(value).toLocaleString("th-TH")}` : `$${Number(value).toLocaleString("en-US")}`, "มูลค่าพอร์ต"]}
-                />
-                <Area type="monotone" dataKey="price_thb"
-                  stroke={"#00D4FF"} strokeWidth={2} fill="url(#grad_portfolio)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : activeCoin && mergedAssetOnSnapshots.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={mergedAssetOnSnapshots} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="grad_asset" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={COIN_COLORS[activeCoin] ?? "#00D4FF"} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={COIN_COLORS[activeCoin] ?? "#00D4FF"} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#0F1F55" />
-                <XAxis dataKey="date" tick={{ fill: "#5A6A9A", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#5A6A9A", fontSize: 11 }} axisLine={false} tickLine={false}
-                  tickFormatter={(v) => currency === "thb" ? `฿${Number(v).toLocaleString()}` : `$${Number(v).toLocaleString()}`}
-                  width={120}
-                />
-                <Tooltip
-                  contentStyle={{ background: "#071442", border: "1px solid #0F1F55", borderRadius: 8 }}
-                  labelStyle={{ color: "#A0A0B0", fontSize: 12 }}
-                  formatter={(value) => [currency === "thb" ? `฿${Number(value).toLocaleString("th-TH")}` : `$${Number(value).toLocaleString("en-US")}`, "ราคา"]}
-                />
-                <Area type="monotone" dataKey={"price_thb"}
-                  stroke={COIN_COLORS[activeCoin] ?? "#00D4FF"} strokeWidth={2} fill="url(#grad_asset)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="grad_default" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={COIN_COLORS[activeCoin] ?? "#00D4FF"} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={COIN_COLORS[activeCoin] ?? "#00D4FF"} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#0F1F55" />
-                <XAxis dataKey="date" tick={{ fill: "#5A6A9A", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#5A6A9A", fontSize: 11 }} axisLine={false} tickLine={false}
-                  tickFormatter={(v) => currency === "thb" ? `฿${Number(v).toLocaleString()}` : `$${Number(v).toLocaleString()}`}
-                  width={120}
-                />
-                <Tooltip
-                  contentStyle={{ background: "#071442", border: "1px solid #0F1F55", borderRadius: 8 }}
-                  labelStyle={{ color: "#A0A0B0", fontSize: 12 }}
-                  formatter={(value) => [currency === "thb" ? `฿${Number(value).toLocaleString("th-TH")}` : `$${Number(value).toLocaleString("en-US")}`, "ราคา"]}
-                />
-                <Area type="monotone" dataKey={currency === "thb" ? "price_thb" : "price_usd"}
-                  stroke={COIN_COLORS[activeCoin] ?? "#00D4FF"} strokeWidth={2} fill="url(#grad_default)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[260px] flex flex-col items-center justify-center rounded-lg border border-[#0F1F55] bg-[#030B2A]">
-              <TrendingUp className="h-10 w-10 text-[#0F1F55] mb-3" />
-              <p className="text-sm text-[#5A6A9A]">ยังไม่มีประวัติราคา</p>
-              <p className="text-xs text-[#5A6A9A] mt-1">ระบบบันทึกราคาทุกวัน 06:00 น.</p>
-            </div>
-          )}
-        </div>
 
         {/* Buy Info */}
         <div className="rounded-xl border border-[#0F1F55] bg-gradient-to-b from-[#071442] to-[#040E35] p-5">
