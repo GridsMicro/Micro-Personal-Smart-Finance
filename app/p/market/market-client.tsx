@@ -9,9 +9,9 @@ const PORTFOLIO_ID = "a0000000-0000-0000-0000-000000000001";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 // TradingView symbol mapping
-// Primary: BITKUB:<SYMBOL>THB (ราคา THB ตรง)
-// Fallback: BINANCE:<SYMBOL>USDT
-const TV_SYMBOL: Record<string, string> = {
+// THB pairs: BITKUB:<SYMBOL>THB
+// USDT pairs: BINANCE:<SYMBOL>USDT
+const TV_SYMBOL_THB: Record<string, string> = {
   bitcoin:            "BITKUB:BTCTHB",
   ethereum:           "BITKUB:ETHTHB",
   tron:               "BITKUB:TRXTHB",
@@ -20,7 +20,7 @@ const TV_SYMBOL: Record<string, string> = {
   solana:             "BITKUB:SOLTHB",
   cardano:            "BITKUB:ADATHB",
   ripple:             "BITKUB:XRPTHB",
-  binancecoin:        "BINANCE:BNBUSDT",
+  binancecoin:        "BITKUB:BNBTHB",
   "avalanche-2":      "BITKUB:AVAXTHB",
   polkadot:           "BITKUB:DOTTHB",
   "matic-network":    "BITKUB:MATICTHB",
@@ -29,10 +29,32 @@ const TV_SYMBOL: Record<string, string> = {
   "usd-coin":         "BINANCE:USDCUSDT",
   ordi:               "BINANCE:ORDIUSDT",
   "1000sats-ordinals":"BINANCE:SATSUSDT",
-  goat:               "BINANCE:GOATUSDT",
-  "moo-deng":         "BINANCE:MOODENGUSDT",
+  chainlink:          "BITKUB:LINKTHB",
+};
 
-  chainlink: "BITKUB:LINKTHB",};
+const TV_SYMBOL_USDT: Record<string, string> = {
+  bitcoin:            "BINANCE:BTCUSDT",
+  ethereum:           "BINANCE:ETHUSDT",
+  tron:               "BINANCE:TRXUSDT",
+  dogecoin:           "BINANCE:DOGEUSDT",
+  tether:             "BINANCE:USDTUSDC",
+  solana:             "BINANCE:SOLUSDT",
+  cardano:            "BINANCE:ADAUSDT",
+  ripple:             "BINANCE:XRPUSDT",
+  binancecoin:        "BINANCE:BNBUSDT",
+  "avalanche-2":      "BINANCE:AVAXUSDT",
+  polkadot:           "BINANCE:DOTUSDT",
+  "matic-network":    "BINANCE:MATICUSDT",
+  litecoin:           "BINANCE:LTCUSDT",
+  near:               "BINANCE:NEARUSDT",
+  "usd-coin":         "BINANCE:USDCUSDT",
+  ordi:               "BINANCE:ORDIUSDT",
+  "1000sats-ordinals":"BINANCE:SATSUSDT",
+  chainlink:          "BINANCE:LINKUSDT",
+};
+
+// fallback สำหรับ TV_SYMBOL (ใช้ใน manage_assets.py patch)
+const TV_SYMBOL = TV_SYMBOL_THB;
 
 const COIN_SYMBOL: Record<string, string> = {
   bitcoin: "BTC", ethereum: "ETH", tron: "TRX", dogecoin: "DOGE",
@@ -40,7 +62,7 @@ const COIN_SYMBOL: Record<string, string> = {
   binancecoin: "BNB", "avalanche-2": "AVAX", polkadot: "DOT",
   "matic-network": "MATIC", litecoin: "LTC", near: "NEAR",
   "usd-coin": "USDC", ordi: "ORDI", "1000sats-ordinals": "SATS",
-  goat: "GOAT", "moo-deng": "MOODENG",
+  goat: "GOAT", "moo-deng": "MOODENG", chainlink: "LINK",
 };
 
 const COIN_COLOR: Record<string, string> = {
@@ -101,7 +123,12 @@ function TradingViewWidget({ symbol, coinId }: { symbol: string; coinId: string 
 
 // ── Chart Modal ─────────────────────────────────────────────────────────────
 function ChartModal({ coin, onClose }: { coin: CoinData; onClose: () => void }) {
-  const symbol = TV_SYMBOL[coin.id] ?? `BINANCE:${COIN_SYMBOL[coin.id] ?? coin.id.toUpperCase()}USDT`;
+  const [pair, setPair] = useState<"thb" | "usdt">("thb");
+
+  const symbolThb = TV_SYMBOL_THB[coin.id] ?? `BINANCE:${COIN_SYMBOL[coin.id] ?? coin.id.toUpperCase()}USDT`;
+  const symbolUsdt = TV_SYMBOL_USDT[coin.id] ?? `BINANCE:${COIN_SYMBOL[coin.id] ?? coin.id.toUpperCase()}USDT`;
+  const symbol = pair === "thb" ? symbolThb : symbolUsdt;
+
   const change = coin.change_24h ?? 0;
   const isUp = change >= 0;
 
@@ -121,10 +148,7 @@ function ChartModal({ coin, onClose }: { coin: CoinData; onClose: () => void }) 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div className="relative w-full sm:w-[92vw] sm:max-w-5xl h-[92dvh] sm:h-[85vh] rounded-t-2xl sm:rounded-2xl border border-[#0F1F55] bg-[#00072D] flex flex-col overflow-hidden shadow-2xl">
@@ -153,7 +177,7 @@ function ChartModal({ coin, onClose }: { coin: CoinData; onClose: () => void }) 
 
           <div className="flex items-center gap-2">
             {/* ราคา */}
-            <div className="hidden sm:block text-right mr-2">
+            <div className="hidden sm:block text-right mr-1">
               {coin.price_thb != null && (
                 <p className="text-base font-bold text-white">
                   ฿{coin.price_thb.toLocaleString("th-TH", { maximumFractionDigits: coin.price_thb < 1 ? 6 : 2 })}
@@ -164,6 +188,22 @@ function ChartModal({ coin, onClose }: { coin: CoinData; onClose: () => void }) 
                   ? `$${coin.price_usdt.toLocaleString("en-US", { maximumFractionDigits: coin.price_usdt < 1 ? 6 : 2 })} USDT`
                   : `$${coin.price_usd.toLocaleString("en-US", { maximumFractionDigits: coin.price_usd < 1 ? 6 : 2 })} USD`}
               </p>
+            </div>
+
+            {/* Toggle THB / USDT */}
+            <div className="flex items-center rounded-lg border border-[#0F1F55] overflow-hidden text-xs font-semibold">
+              <button
+                onClick={() => setPair("thb")}
+                className={`h-8 px-3 transition-all ${pair === "thb" ? "bg-[#00D4FF] text-black" : "text-[#A0A0B0] hover:bg-[#0A1845]"}`}
+              >
+                THB
+              </button>
+              <button
+                onClick={() => setPair("usdt")}
+                className={`h-8 px-3 transition-all ${pair === "usdt" ? "bg-[#26A17B] text-white" : "text-[#A0A0B0] hover:bg-[#0A1845]"}`}
+              >
+                USDT
+              </button>
             </div>
 
             {/* TradingView link */}
@@ -186,9 +226,9 @@ function ChartModal({ coin, onClose }: { coin: CoinData; onClose: () => void }) 
           </div>
         </div>
 
-        {/* Chart */}
+        {/* Chart — re-mount เมื่อ symbol เปลี่ยน */}
         <div className="flex-1 min-h-0 p-0">
-          <TradingViewWidget symbol={symbol} coinId={coin.id} />
+          <TradingViewWidget key={symbol} symbol={symbol} coinId={coin.id} />
         </div>
       </div>
     </div>
