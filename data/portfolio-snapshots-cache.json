@@ -778,5 +778,11 @@
     "total_value_thb": 0,
     "btc_price_thb": null,
     "trx_price_thb": null
+  },
+  {
+    "snapshot_date": "2026-08-16",
+    "total_value_thb": 0,
+    "btc_price_thb": null,
+    "trx_price_thb": null
   }
 ]
