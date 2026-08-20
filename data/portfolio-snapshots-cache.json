@@ -784,5 +784,29 @@
     "total_value_thb": 0,
     "btc_price_thb": null,
     "trx_price_thb": null
+  },
+  {
+    "snapshot_date": "2026-08-17",
+    "total_value_thb": 0,
+    "btc_price_thb": null,
+    "trx_price_thb": null
+  },
+  {
+    "snapshot_date": "2026-08-18",
+    "total_value_thb": 0,
+    "btc_price_thb": null,
+    "trx_price_thb": null
+  },
+  {
+    "snapshot_date": "2026-08-19",
+    "total_value_thb": 0,
+    "btc_price_thb": null,
+    "trx_price_thb": null
+  },
+  {
+    "snapshot_date": "2026-08-20",
+    "total_value_thb": 0,
+    "btc_price_thb": null,
+    "trx_price_thb": null
   }
 ]
